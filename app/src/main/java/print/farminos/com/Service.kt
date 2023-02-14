@@ -1,10 +1,13 @@
 package print.farminos.com
 
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.print.PrintAttributes
 import android.print.PrintAttributes.Margins
@@ -17,14 +20,22 @@ import android.printservice.PrintService
 import android.printservice.PrinterDiscoverySession
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.getSystemService
 import com.citizen.jpos.command.CPCLConst
 import com.citizen.jpos.printer.CPCLPrinter
 import com.citizen.port.android.BluetoothPort
 import com.citizen.request.android.RequestHandler
+import com.github.anastaciocintra.escpos.EscPos
+import com.github.anastaciocintra.escpos.image.BitImageWrapper
+import com.github.anastaciocintra.escpos.image.BitonalOrderedDither
+import com.github.anastaciocintra.escpos.image.EscPosImage
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.OutputStream
+
 
 private fun pdfToBitmap(document: ParcelFileDescriptor): ArrayList<Bitmap> {
     val bitmaps: ArrayList<Bitmap> = ArrayList()
@@ -81,6 +92,15 @@ private fun pdfToBitmap(document: ParcelFileDescriptor): ArrayList<Bitmap> {
 }
 
 
+
+fun wololo(bitmap: Bitmap, printerOutputStream: OutputStream) {
+    val algorithm = BitonalOrderedDither()
+    val escposImage = EscPosImage(BitmapImage(bitmap), algorithm)
+    val escpos = EscPos(printerOutputStream)
+    val wrapper = BitImageWrapper()
+    escpos.write(wrapper, escposImage)
+}
+
 internal class CITIZENPrintJobThread(
     private val context: FarminOSPrintService,
     private val printer: PrinterInfo,
@@ -89,8 +109,29 @@ internal class CITIZENPrintJobThread(
     private lateinit var bluetoothPort: BluetoothPort
     private lateinit var thread: Thread
 
+    @SuppressLint("MissingPermission")
+    @RequiresApi(Build.VERSION_CODES.M)
     override fun run() {
         val pages = pdfToBitmap(document)
+        //----------------------------------
+        val address = printer.id.localId
+        val bluetoothManager: BluetoothManager = context.getSystemService(BluetoothManager::class.java)!!
+        val bluetoothAdapter = bluetoothManager.adapter
+        val device = bluetoothAdapter.getRemoteDevice(address)
+        val uuids = device.uuids
+        val size = uuids.size
+        Log.d("WOLOLO", "$address $device $uuids $size")
+        uuids.forEach {
+            Log.d("WOLOLO", it.toString())
+        }
+        val uuid = uuids[0]
+        val btSocket = device.createInsecureRfcommSocketToServiceRecord(uuid.uuid);
+        btSocket.connect()
+        val stream = btSocket.outputStream
+        val bitmap = pages[0]
+        wololo(bitmap, stream)
+        return
+        //----------------------------------
 
         bluetoothPort = BluetoothPort.getInstance()
         thread = Thread(RequestHandler())
@@ -223,6 +264,8 @@ class FarminOSPrintService : PrintService() {
         return FarminOSPrinterDiscoverySession(this)
     }
 
+    @SuppressLint("MissingPermission")
+    @RequiresApi(Build.VERSION_CODES.M)
     override fun onPrintJobQueued(printJob: PrintJob) {
         val printer = printers.find { it.id == printJob.info.printerId }
         val document = printJob.document.data
