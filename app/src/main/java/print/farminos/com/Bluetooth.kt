@@ -3,12 +3,12 @@ package print.farminos.com
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 @SuppressLint("MissingPermission")
@@ -31,7 +31,7 @@ fun BluetoothComposable(
             ) {
                 Column {
                     Text(text = it.name)
-                    Text(text = it.address, color = Color.Gray)
+                    Text(text = it.address, color = MaterialTheme.colorScheme.secondary)
                 }
                 Button(
                     onClick = {
