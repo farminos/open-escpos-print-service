@@ -11,19 +11,18 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
@@ -31,25 +30,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import print.farminos.com.ui.theme.FarminOSCITIZENPrintServiceTheme
 
-data class State(
-    val printers: List<Printer>,
-    val bluetooth: Boolean,
-)
+const val BLUETOOTH_ENABLE_REQUEST = 0
+const val BLUETOOTH_PERMISSIONS_REQUEST = 1
+@RequiresApi(Build.VERSION_CODES.S)
+val PERMISSIONS =
+    listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
 
 class Activity : ComponentActivity() {
-    lateinit var bluetoothAdapter: BluetoothAdapter;
-    private lateinit var preferences: SharedPreferences;
+    lateinit var bluetoothAdapter: BluetoothAdapter
+    private lateinit var preferences: SharedPreferences
 
     private val receiver = BluetoothBroadcastReceiver(this)
-    private val BLUETOOTH_ENABLE_REQUEST = 0;
-    private val BLUETOOTH_PERMISSIONS_REQUEST = 1;
-
-    private val PERMISSIONS =
-        listOf<String>(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
 
     lateinit var bluetoothState : MutableStateFlow<Boolean>
     lateinit var printersState : MutableStateFlow<List<Printer>>
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -58,7 +54,7 @@ class Activity : ComponentActivity() {
 
         // initialize printers state
         printersState = MutableStateFlow(preferences.all.entries.map {
-            it -> Printer(it.value as String, it.key)
+            Printer(it.value as String, it.key)
         })
 
         // get bluetooth adapter
@@ -94,6 +90,8 @@ class Activity : ComponentActivity() {
         }
     }
 
+    @Suppress("DEPRECATION")
+    @Deprecated("Deprecated in Java")
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -119,7 +117,8 @@ class Activity : ComponentActivity() {
         unregisterReceiver(receiver)
     }
 
-    fun checkBluetoothPermissions(): Boolean {
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun checkBluetoothPermissions(): Boolean {
         return ActivityCompat.checkSelfPermission(
             this,
             Manifest.permission.BLUETOOTH_CONNECT
@@ -129,7 +128,8 @@ class Activity : ComponentActivity() {
         ) != PackageManager.PERMISSION_GRANTED
     }
 
-    fun requestBluetoothPermissions() {
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun requestBluetoothPermissions() {
         if (ActivityCompat.shouldShowRequestPermissionRationale(
                 this,
                 Manifest.permission.BLUETOOTH_SCAN
@@ -143,7 +143,7 @@ class Activity : ComponentActivity() {
 
             builder.setPositiveButton(
                 "ok"
-            ) { dialog, id ->
+            ) { _, _ ->
                 ActivityCompat.requestPermissions(
                     this,
                     PERMISSIONS.toTypedArray(),
@@ -151,7 +151,7 @@ class Activity : ComponentActivity() {
                 )
             }
 
-            builder.setNegativeButton("deny") { dialog, id ->
+            builder.setNegativeButton("deny") { dialog, _ ->
                 dialog.dismiss()
             }
 
@@ -168,6 +168,7 @@ class Activity : ComponentActivity() {
         }
     }
 
+    @Suppress("DEPRECATION")
     @SuppressLint("MissingPermission")
     fun enableBluetooth() {
         val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)

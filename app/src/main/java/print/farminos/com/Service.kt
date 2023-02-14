@@ -26,7 +26,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 
-private fun pdfToBitmap(context: Context, document: ParcelFileDescriptor): ArrayList<Bitmap>? {
+private fun pdfToBitmap(document: ParcelFileDescriptor): ArrayList<Bitmap> {
     val bitmaps: ArrayList<Bitmap> = ArrayList()
     try {
         val renderer =
@@ -40,32 +40,32 @@ private fun pdfToBitmap(context: Context, document: ParcelFileDescriptor): Array
             val height: Double = 203 / 2.54 * 9
             bitmap = Bitmap.createBitmap(width.toInt(), height.toInt(), Bitmap.Config.ARGB_8888)
             page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
-            val allpixels = IntArray(bitmap.height * bitmap.width)
+            val pixels = IntArray(bitmap.height * bitmap.width)
 
             bitmap.getPixels(
-                allpixels,
+                pixels,
                 0,
-                bitmap.getWidth(),
+                bitmap.width,
                 0,
                 0,
-                bitmap.getWidth(),
-                bitmap.getHeight()
+                bitmap.width,
+                bitmap.height
             )
 
-            for (i in allpixels.indices) {
-                if (allpixels[i] == Color.TRANSPARENT) {
-                    allpixels[i] = Color.WHITE
+            for (j in pixels.indices) {
+                if (pixels[j] == Color.TRANSPARENT) {
+                    pixels[j] = Color.WHITE
                 }
             }
 
             bitmap.setPixels(
-                allpixels,
+                pixels,
                 0,
-                bitmap.getWidth(),
+                bitmap.width,
                 0,
                 0,
-                bitmap.getWidth(),
-                bitmap.getHeight()
+                bitmap.width,
+                bitmap.height
             )
             bitmaps.add(bitmap)
             // close the page
@@ -86,11 +86,11 @@ internal class CITIZENPrintJobThread(
     private val printer: PrinterInfo,
     private val document: ParcelFileDescriptor
 ) : Thread() {
-    private lateinit var bluetoothPort: BluetoothPort;
-    private lateinit var thread: Thread;
+    private lateinit var bluetoothPort: BluetoothPort
+    private lateinit var thread: Thread
 
     override fun run() {
-        val pages = pdfToBitmap(context, document)
+        val pages = pdfToBitmap(document)
 
         bluetoothPort = BluetoothPort.getInstance()
         thread = Thread(RequestHandler())
@@ -133,7 +133,7 @@ internal class CITIZENPrintJobThread(
             }
 
             cpclPrinter.setMedia(CPCLConst.CMP_CPCL_LABEL)
-            pages?.forEach {
+            pages.forEach {
                 // TODO: labelHeight is hardcoded
                 cpclPrinter.setForm(0, 1, 1, 900, 1)
                 cpclPrinter.printBitmap(it, 0, 0)
@@ -152,7 +152,7 @@ internal class CITIZENPrintJobThread(
             this.bluetoothPort.disconnect()
         }
         this.document.close()
-        if (thread != null && thread.isAlive) {
+        if (thread.isAlive) {
             thread.interrupt()
         }
     }
@@ -171,7 +171,7 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
 
     override fun onStartPrinterStateTracking(printerId: PrinterId) {
         context.printers = printers.map {
-            if (it.id.equals(printerId)) {
+            if (it.id == printerId) {
                 // TODO: this is very hardcoded
                 PrinterInfo.Builder(it).setCapabilities(
                     PrinterCapabilitiesInfo.Builder(it.id)
@@ -200,7 +200,7 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
 }
 
 class FarminOSPrintService : PrintService() {
-    private lateinit var preferences: SharedPreferences;
+    private lateinit var preferences: SharedPreferences
     lateinit var printers: List<PrinterInfo>
 
     override fun onCreate() {
@@ -224,12 +224,12 @@ class FarminOSPrintService : PrintService() {
     }
 
     override fun onPrintJobQueued(printJob: PrintJob) {
-        val printer = printers.find { it -> it.id.equals(printJob.info.printerId) }
+        val printer = printers.find { it.id == printJob.info.printerId }
         val document = printJob.document.data
 
         if (printer != null && document != null) {
             // we copy the document in the main thread, otherwise you get: java.lang.IllegalAccessError
-            val outputFile = File.createTempFile(System.currentTimeMillis().toString(), null, this.cacheDir);
+            val outputFile = File.createTempFile(System.currentTimeMillis().toString(), null, this.cacheDir)
             val outputStream = FileOutputStream(outputFile)
 
             val inputStream = FileInputStream(document.fileDescriptor)
@@ -244,9 +244,7 @@ class FarminOSPrintService : PrintService() {
             inputStream.close()
             outputStream.close()
 
-            val document = ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_WRITE)
-
-            val thread = CITIZENPrintJobThread(this, printer, document)
+            val thread = CITIZENPrintJobThread(this, printer, ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_WRITE))
             thread.start()
         } else {
             printJob.cancel()
