@@ -62,7 +62,7 @@ class Activity : ComponentActivity() {
         bluetoothAdapter = bluetoothManager.adapter
 
         // requesting bluetooth permissions
-        if (!checkBluetoothPermissions()) {
+        if (!bluetoothAllowed()) {
             requestBluetoothPermissions()
         }
 
@@ -118,14 +118,14 @@ class Activity : ComponentActivity() {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private fun checkBluetoothPermissions(): Boolean {
+    private fun bluetoothAllowed(): Boolean {
         return ActivityCompat.checkSelfPermission(
             this,
             Manifest.permission.BLUETOOTH_CONNECT
-        ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+        ) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
             this,
             Manifest.permission.BLUETOOTH_SCAN
-        ) != PackageManager.PERMISSION_GRANTED
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
