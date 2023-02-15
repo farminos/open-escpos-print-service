@@ -35,10 +35,39 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.OutputStream
+import java.text.SimpleDateFormat
+import java.util.*
 import kotlin.math.ceil
 
 private fun cmToDots(cm: Double, dpi: Int): Int {
     return ceil((cm / 2.54) * dpi).toInt()
+}
+
+private fun convertTransparentToWhite(bitmap: Bitmap) {
+    val pixels = IntArray(bitmap.height * bitmap.width)
+    bitmap.getPixels(
+        pixels,
+        0,
+        bitmap.width,
+        0,
+        0,
+        bitmap.width,
+        bitmap.height
+    )
+    for (j in pixels.indices) {
+        if (pixels[j] == Color.TRANSPARENT) {
+            pixels[j] = Color.WHITE
+        }
+    }
+    bitmap.setPixels(
+        pixels,
+        0,
+        bitmap.width,
+        0,
+        0,
+        bitmap.width,
+        bitmap.height
+    )
 }
 
 private fun pdfToBitmap(document: ParcelFileDescriptor, dpi: Int, w: Double, h: Double) = sequence<Bitmap> {
@@ -46,39 +75,12 @@ private fun pdfToBitmap(document: ParcelFileDescriptor, dpi: Int, w: Double, h: 
     val pageCount = renderer.pageCount
     for (i in 0 until pageCount) {
         val page = renderer.openPage(i)
-        // the cmp-30ii has 203 dpi (dots per inch) / 2.54 (inch to cm) results dpc (dots per cm) * how many cm we want (based on label size). hardcoded.
         val width = cmToDots(w, dpi)
         val height = cmToDots(h, dpi)
         Log.d("WOLOLO", "w=$w h=$h dpi=$dpi width=$width height=$height")
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        convertTransparentToWhite(bitmap)
         page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
-        val pixels = IntArray(bitmap.height * bitmap.width)
-
-        bitmap.getPixels(
-            pixels,
-            0,
-            bitmap.width,
-            0,
-            0,
-            bitmap.width,
-            bitmap.height
-        )
-
-        for (j in pixels.indices) {
-            if (pixels[j] == Color.TRANSPARENT) {
-                pixels[j] = Color.WHITE
-            }
-        }
-
-        bitmap.setPixels(
-            pixels,
-            0,
-            bitmap.width,
-            0,
-            0,
-            bitmap.width,
-            bitmap.height
-        )
         yield(bitmap)
         page.close()
     }
@@ -87,12 +89,12 @@ private fun pdfToBitmap(document: ParcelFileDescriptor, dpi: Int, w: Double, h: 
 
 
 
-fun printBitmap(bitmap: Bitmap, printerOutputStream: OutputStream) {
+fun printBitmap(bitmap: Bitmap, escpos: EscPos) {
     val algorithm = BitonalOrderedDither()
     val escposImage = EscPosImage(BitmapImage(bitmap), algorithm)
-    val escpos = EscPos(printerOutputStream)
     val wrapper = BitImageWrapper()
     escpos.write(wrapper, escposImage)
+    escpos.flush()
 }
 
 internal class ESCPOSPrintJobThread(
@@ -103,7 +105,7 @@ internal class ESCPOSPrintJobThread(
     private lateinit var btSocket: BluetoothSocket
 
     @SuppressLint("MissingPermission")
-    @RequiresApi(Build.VERSION_CODES.M)
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun run() {
         val address = printer.id.localId
         val bluetoothManager: BluetoothManager = context.getSystemService(BluetoothManager::class.java)!!
@@ -114,11 +116,19 @@ internal class ESCPOSPrintJobThread(
         val uuid = uuids[0]
         this.btSocket = device.createInsecureRfcommSocketToServiceRecord(uuid.uuid);
         this.btSocket.connect()
-        val stream = this.btSocket.outputStream
+        val outputStream = this.btSocket.outputStream
+        val inputStream = this.btSocket.inputStream
         val pages = pdfToBitmap(document, 203, 5.1, 8.0)
+        val escpos = EscPos(outputStream)
         pages.forEach{
-            printBitmap(it, stream)
+            printBitmap(it, escpos)
+            do {
+                val size = inputStream.read()
+            } while (size > 0)
+            escpos.cut(EscPos.CutMode.PART)
         }
+        escpos.flush()
+        escpos.close()
         clean()
     }
 
@@ -226,13 +236,13 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
         val dpi = 203
         val width = 5.1
         val height = 8.0
-        val marginMils = 10
+        val marginMils = 0
         context.printers = printers.map {
             if (it.id == printerId) {
                 PrinterInfo.Builder(it).setCapabilities(
                     PrinterCapabilitiesInfo.Builder(it.id)
                         .addMediaSize(
-                            PrintAttributes.MediaSize("${width}x${height}cm", "${width}x${height}cm", cmToMils(width), cmToMils(width)),
+                            PrintAttributes.MediaSize("${width}x${height}cm", "${width}x${height}cm", cmToMils(width), cmToMils(height)),
                             true
                         )
                         .addResolution(Resolution("${dpi}dpi", "${dpi}dpi", dpi, dpi), true)
