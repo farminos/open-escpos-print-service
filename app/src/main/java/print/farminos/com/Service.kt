@@ -22,6 +22,7 @@ import android.printservice.PrinterDiscoverySession
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.core.content.ContextCompat
 import com.citizen.jpos.command.CPCLConst
 import com.citizen.jpos.printer.CPCLPrinter
@@ -105,10 +106,9 @@ internal class ESCPOSPrintJobThread(
     private lateinit var btSocket: BluetoothSocket
 
     @SuppressLint("MissingPermission")
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun run() {
         val address = printer.id.localId
-        val bluetoothManager: BluetoothManager = context.getSystemService(BluetoothManager::class.java)!!
+        val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
         val bluetoothAdapter = bluetoothManager.adapter
         val device = bluetoothAdapter.getRemoteDevice(address)
         val uuids = device.uuids
