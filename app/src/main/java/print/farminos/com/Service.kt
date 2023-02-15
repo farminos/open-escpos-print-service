@@ -2,6 +2,7 @@ package print.farminos.com
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Bitmap
@@ -93,12 +94,47 @@ private fun pdfToBitmap(document: ParcelFileDescriptor): ArrayList<Bitmap> {
 
 
 
-fun wololo(bitmap: Bitmap, printerOutputStream: OutputStream) {
+fun printBitmap(bitmap: Bitmap, printerOutputStream: OutputStream) {
     val algorithm = BitonalOrderedDither()
     val escposImage = EscPosImage(BitmapImage(bitmap), algorithm)
     val escpos = EscPos(printerOutputStream)
     val wrapper = BitImageWrapper()
     escpos.write(wrapper, escposImage)
+}
+
+internal class ESCPOSPrintJobThread(
+    private val context: FarminOSPrintService,
+    private val printer: PrinterInfo,
+    private val document: ParcelFileDescriptor
+) : Thread() {
+    private lateinit var btSocket: BluetoothSocket
+
+    @SuppressLint("MissingPermission")
+    @RequiresApi(Build.VERSION_CODES.M)
+    override fun run() {
+        val pages = pdfToBitmap(document)
+        val address = printer.id.localId
+        val bluetoothManager: BluetoothManager = context.getSystemService(BluetoothManager::class.java)!!
+        val bluetoothAdapter = bluetoothManager.adapter
+        val device = bluetoothAdapter.getRemoteDevice(address)
+        val uuids = device.uuids
+        Log.d("WOLOLO", "$address $device $uuids")
+        val uuid = uuids[0]
+        this.btSocket = device.createInsecureRfcommSocketToServiceRecord(uuid.uuid);
+        this.btSocket.connect()
+        val stream = this.btSocket.outputStream
+        pages.forEach{
+            printBitmap(it, stream)
+        }
+        clean()
+    }
+
+    private fun clean() {
+        if (this.btSocket.isConnected) {
+            this.btSocket.close()
+        }
+        this.document.close()
+    }
 }
 
 internal class CITIZENPrintJobThread(
@@ -109,30 +145,8 @@ internal class CITIZENPrintJobThread(
     private lateinit var bluetoothPort: BluetoothPort
     private lateinit var thread: Thread
 
-    @SuppressLint("MissingPermission")
-    @RequiresApi(Build.VERSION_CODES.M)
     override fun run() {
         val pages = pdfToBitmap(document)
-        //----------------------------------
-        val address = printer.id.localId
-        val bluetoothManager: BluetoothManager = context.getSystemService(BluetoothManager::class.java)!!
-        val bluetoothAdapter = bluetoothManager.adapter
-        val device = bluetoothAdapter.getRemoteDevice(address)
-        val uuids = device.uuids
-        val size = uuids.size
-        Log.d("WOLOLO", "$address $device $uuids $size")
-        uuids.forEach {
-            Log.d("WOLOLO", it.toString())
-        }
-        val uuid = uuids[0]
-        val btSocket = device.createInsecureRfcommSocketToServiceRecord(uuid.uuid);
-        btSocket.connect()
-        val stream = btSocket.outputStream
-        val bitmap = pages[0]
-        wololo(bitmap, stream)
-        return
-        //----------------------------------
-
         bluetoothPort = BluetoothPort.getInstance()
         thread = Thread(RequestHandler())
 
