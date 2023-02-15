@@ -23,7 +23,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
-import androidx.core.content.ContextCompat.getSystemService
 import com.citizen.jpos.command.CPCLConst
 import com.citizen.jpos.printer.CPCLPrinter
 import com.citizen.port.android.BluetoothPort
@@ -36,60 +35,54 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.OutputStream
+import kotlin.math.ceil
 
+private fun cmToDots(cm: Double, dpi: Int): Int {
+    return ceil((cm / 2.54) * dpi).toInt()
+}
 
-private fun pdfToBitmap(document: ParcelFileDescriptor): ArrayList<Bitmap> {
-    val bitmaps: ArrayList<Bitmap> = ArrayList()
-    try {
-        val renderer =
-            PdfRenderer(document)
-        var bitmap: Bitmap
-        val pageCount = renderer.pageCount
-        for (i in 0 until pageCount) {
-            val page = renderer.openPage(i)
-            // the cmp-30ii has 203 dpi (dots per inch) / 2.54 (inch to cm) results dpc (dots per cm) * how many cm we want (based on label size). hardcoded.
-            val width: Double = 203 / 2.54 * 7
-            val height: Double = 203 / 2.54 * 9
-            bitmap = Bitmap.createBitmap(width.toInt(), height.toInt(), Bitmap.Config.ARGB_8888)
-            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
-            val pixels = IntArray(bitmap.height * bitmap.width)
+private fun pdfToBitmap(document: ParcelFileDescriptor, dpi: Int, w: Double, h: Double) = sequence<Bitmap> {
+    val renderer = PdfRenderer(document)
+    val pageCount = renderer.pageCount
+    for (i in 0 until pageCount) {
+        val page = renderer.openPage(i)
+        // the cmp-30ii has 203 dpi (dots per inch) / 2.54 (inch to cm) results dpc (dots per cm) * how many cm we want (based on label size). hardcoded.
+        val width = cmToDots(w, dpi)
+        val height = cmToDots(h, dpi)
+        Log.d("WOLOLO", "w=$w h=$h dpi=$dpi width=$width height=$height")
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
+        val pixels = IntArray(bitmap.height * bitmap.width)
 
-            bitmap.getPixels(
-                pixels,
-                0,
-                bitmap.width,
-                0,
-                0,
-                bitmap.width,
-                bitmap.height
-            )
+        bitmap.getPixels(
+            pixels,
+            0,
+            bitmap.width,
+            0,
+            0,
+            bitmap.width,
+            bitmap.height
+        )
 
-            for (j in pixels.indices) {
-                if (pixels[j] == Color.TRANSPARENT) {
-                    pixels[j] = Color.WHITE
-                }
+        for (j in pixels.indices) {
+            if (pixels[j] == Color.TRANSPARENT) {
+                pixels[j] = Color.WHITE
             }
-
-            bitmap.setPixels(
-                pixels,
-                0,
-                bitmap.width,
-                0,
-                0,
-                bitmap.width,
-                bitmap.height
-            )
-            bitmaps.add(bitmap)
-            // close the page
-            page.close()
         }
 
-        // close the renderer
-        renderer.close()
-    } catch (ex: java.lang.Exception) {
-        ex.printStackTrace()
+        bitmap.setPixels(
+            pixels,
+            0,
+            bitmap.width,
+            0,
+            0,
+            bitmap.width,
+            bitmap.height
+        )
+        yield(bitmap)
+        page.close()
     }
-    return bitmaps
+    renderer.close()
 }
 
 
@@ -112,7 +105,6 @@ internal class ESCPOSPrintJobThread(
     @SuppressLint("MissingPermission")
     @RequiresApi(Build.VERSION_CODES.M)
     override fun run() {
-        val pages = pdfToBitmap(document)
         val address = printer.id.localId
         val bluetoothManager: BluetoothManager = context.getSystemService(BluetoothManager::class.java)!!
         val bluetoothAdapter = bluetoothManager.adapter
@@ -123,6 +115,7 @@ internal class ESCPOSPrintJobThread(
         this.btSocket = device.createInsecureRfcommSocketToServiceRecord(uuid.uuid);
         this.btSocket.connect()
         val stream = this.btSocket.outputStream
+        val pages = pdfToBitmap(document, 203, 5.1, 8.0)
         pages.forEach{
             printBitmap(it, stream)
         }
@@ -146,7 +139,6 @@ internal class CITIZENPrintJobThread(
     private lateinit var thread: Thread
 
     override fun run() {
-        val pages = pdfToBitmap(document)
         bluetoothPort = BluetoothPort.getInstance()
         thread = Thread(RequestHandler())
 
@@ -188,6 +180,8 @@ internal class CITIZENPrintJobThread(
             }
 
             cpclPrinter.setMedia(CPCLConst.CMP_CPCL_LABEL)
+            // TODO: hardcoded sizes
+            val pages = pdfToBitmap(document, 203, 7.0, 9.0)
             pages.forEach {
                 // TODO: labelHeight is hardcoded
                 cpclPrinter.setForm(0, 1, 1, 900, 1)
@@ -213,6 +207,9 @@ internal class CITIZENPrintJobThread(
     }
 }
 
+private fun cmToMils(cm: Double): Int {
+    return ceil(cm / 2.54 * 1000).toInt()
+}
 
 class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService) :
     PrinterDiscoverySession() {
@@ -225,21 +222,25 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
     override fun onValidatePrinters(printerIds: MutableList<PrinterId>) {}
 
     override fun onStartPrinterStateTracking(printerId: PrinterId) {
+        // TODO: this is very hardcoded
+        val dpi = 203
+        val width = 5.1
+        val height = 8.0
+        val marginMils = 10
         context.printers = printers.map {
             if (it.id == printerId) {
-                // TODO: this is very hardcoded
                 PrinterInfo.Builder(it).setCapabilities(
                     PrinterCapabilitiesInfo.Builder(it.id)
                         .addMediaSize(
-                            PrintAttributes.MediaSize("70x90mm", "70x90mm", 2750, 3540),
+                            PrintAttributes.MediaSize("${width}x${height}cm", "${width}x${height}cm", cmToMils(width), cmToMils(width)),
                             true
                         )
-                        .addResolution(Resolution("300x300", "300x300", 200, 200), true)
+                        .addResolution(Resolution("${dpi}dpi", "${dpi}dpi", dpi, dpi), true)
                         .setColorModes(
                             PrintAttributes.COLOR_MODE_COLOR,
                             PrintAttributes.COLOR_MODE_COLOR
                         )
-                        .setMinMargins(Margins(10, 10, 10, 10))
+                        .setMinMargins(Margins(marginMils, marginMils, marginMils, marginMils))
                         .build()
                 ).build()
             } else {
@@ -278,8 +279,6 @@ class FarminOSPrintService : PrintService() {
         return FarminOSPrinterDiscoverySession(this)
     }
 
-    @SuppressLint("MissingPermission")
-    @RequiresApi(Build.VERSION_CODES.M)
     override fun onPrintJobQueued(printJob: PrintJob) {
         val printer = printers.find { it.id == printJob.info.printerId }
         val document = printJob.document.data
@@ -301,7 +300,9 @@ class FarminOSPrintService : PrintService() {
             inputStream.close()
             outputStream.close()
 
-            val thread = CITIZENPrintJobThread(this, printer, ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_WRITE))
+            // TODO
+            //val thread = CITIZENPrintJobThread(this, printer, ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_WRITE))
+            val thread = ESCPOSPrintJobThread(this, printer, ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_WRITE))
             thread.start()
         } else {
             printJob.cancel()
