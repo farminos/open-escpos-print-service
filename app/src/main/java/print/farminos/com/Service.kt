@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.pdf.PdfRenderer
 import android.os.Build
 import android.os.ParcelFileDescriptor
@@ -38,6 +39,7 @@ import java.io.FileOutputStream
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.concurrent.thread
 import kotlin.math.ceil
 
 private fun cmToDots(cm: Double, dpi: Int): Int {
@@ -75,13 +77,16 @@ private fun pdfToBitmap(document: ParcelFileDescriptor, dpi: Int, w: Double, h: 
     val renderer = PdfRenderer(document)
     val pageCount = renderer.pageCount
     for (i in 0 until pageCount) {
-        val page = renderer.openPage(i)
         val width = cmToDots(w, dpi)
         val height = cmToDots(h, dpi)
-        Log.d("WOLOLO", "w=$w h=$h dpi=$dpi width=$width height=$height")
+        val page = renderer.openPage(i)
+        val transform = Matrix()
+        val ratio = width.toFloat() / page.width
+        transform.postScale(ratio, ratio)
+        Log.d("WOLOLO", "w=$w h=$h dpi=$dpi width=$width height=$height page.width=${page.width} page.height=${page.height}")
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         convertTransparentToWhite(bitmap)
-        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
+        page.render(bitmap, null, transform, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
         yield(bitmap)
         page.close()
     }
@@ -111,25 +116,29 @@ internal class ESCPOSPrintJobThread(
         val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
         val bluetoothAdapter = bluetoothManager.adapter
         val device = bluetoothAdapter.getRemoteDevice(address)
-        val uuids = device.uuids
-        Log.d("WOLOLO", "$address $device $uuids")
-        val uuid = uuids[0]
-        this.btSocket = device.createInsecureRfcommSocketToServiceRecord(uuid.uuid);
+        Log.d("WOLOLO", "$address $device")
+        val SERIAL_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+        this.btSocket = device.createInsecureRfcommSocketToServiceRecord(SERIAL_UUID);
         this.btSocket.connect()
         val outputStream = this.btSocket.outputStream
-        val inputStream = this.btSocket.inputStream
         val pages = pdfToBitmap(document, 203, 5.1, 8.0)
         val escpos = EscPos(outputStream)
-        pages.forEach{
+        //thread(start = true) {
+        //    val inputStream = this.btSocket.inputStream
+        //    do {
+        //        val size = inputStream.read()
+        //    } while (size > 0)
+        //}
+        pages.forEach {
             printBitmap(it, escpos)
-            do {
-                val size = inputStream.read()
-            } while (size > 0)
             escpos.cut(EscPos.CutMode.PART)
         }
         escpos.flush()
-        escpos.close()
-        clean()
+        outputStream.flush()
+        // Trying to close the output stream or the bluetooth socket here will end up in half printed documents
+        // TODO: maybe sleep then close?
+        //escpos.close()
+        //clean()
     }
 
     private fun clean() {
@@ -231,6 +240,7 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
 
     override fun onValidatePrinters(printerIds: MutableList<PrinterId>) {}
 
+    @RequiresApi(Build.VERSION_CODES.M)
     override fun onStartPrinterStateTracking(printerId: PrinterId) {
         // TODO: this is very hardcoded
         val dpi = 203
@@ -297,13 +307,9 @@ class FarminOSPrintService : PrintService() {
             // we copy the document in the main thread, otherwise you get: java.lang.IllegalAccessError
             val outputFile = File.createTempFile(System.currentTimeMillis().toString(), null, this.cacheDir)
             val outputStream = FileOutputStream(outputFile)
-
             val inputStream = FileInputStream(document.fileDescriptor)
-
             val buffer = ByteArray(8192)
-
             var length: Int
-
             while (inputStream.read(buffer).also { length = it } > 0) {
                 outputStream.write(buffer, 0, length)
             }
@@ -313,7 +319,10 @@ class FarminOSPrintService : PrintService() {
             // TODO
             //val thread = CITIZENPrintJobThread(this, printer, ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_WRITE))
             val thread = ESCPOSPrintJobThread(this, printer, ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_WRITE))
+            printJob.start()
             thread.start()
+            thread.join()
+            printJob.complete()
         } else {
             printJob.cancel()
         }
