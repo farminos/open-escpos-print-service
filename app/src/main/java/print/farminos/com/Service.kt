@@ -33,9 +33,12 @@ import com.github.anastaciocintra.escpos.EscPos
 import com.github.anastaciocintra.escpos.image.BitImageWrapper
 import com.github.anastaciocintra.escpos.image.BitonalOrderedDither
 import com.github.anastaciocintra.escpos.image.EscPosImage
+import kotlinx.coroutines.*
 import java.io.File
+import java.io.FileDescriptor
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.InputStream
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.*
@@ -102,6 +105,36 @@ fun printBitmap(bitmap: Bitmap, escpos: EscPos) {
     escpos.write(wrapper, escposImage)
     escpos.flush()
 }
+//private fun waitForBytes(inputStream: InputStream, n: Long) {
+//    var skipped: Long = 0
+//    do {
+//        Log.d("WOLOLO", "waitForBytes skipping ${n - skipped}")
+//        skipped += inputStream.skip(n - skipped)
+//        Log.d("WOLOLO", "waitForBytes ${skipped}, ${n}")
+//    } while (skipped < n)
+//}
+
+private fun waitForBytes(inputStream: InputStream, n: Int) {
+    val bytes = ByteArray(n)
+    var skipped = 0
+    do {
+        Log.d("WOLOLO", "waitForBytes skipping ${n - skipped}")
+        skipped += inputStream.read(bytes, skipped, n - skipped)
+        Log.d("WOLOLO", "waitForBytes ${skipped}, ${n} ${Arrays.toString(bytes)}")
+    } while (skipped < n)
+}
+
+private fun waitForBytesOrTimeout(inputStream: InputStream, n: Int, timeout: Int) {
+    val job = thread(start = true) {
+        try {
+            waitForBytes(inputStream, n)
+        } catch (error: java.lang.Exception) {
+            println("boom $error")
+        }
+    }
+    job.join(timeout.toLong())
+    println("main: Now I can quit.")
+}
 
 internal class ESCPOSPrintJobThread(
     private val context: FarminOSPrintService,
@@ -121,24 +154,36 @@ internal class ESCPOSPrintJobThread(
         this.btSocket = device.createInsecureRfcommSocketToServiceRecord(SERIAL_UUID);
         this.btSocket.connect()
         val outputStream = this.btSocket.outputStream
-        val pages = pdfToBitmap(document, 203, 5.1, 8.0)
         val escpos = EscPos(outputStream)
+        var bytesReadFromInput = 0
+        val inputStream = this.btSocket.inputStream
         //thread(start = true) {
-        //    val inputStream = this.btSocket.inputStream
         //    do {
-        //        val size = inputStream.read()
+        //        val bytes = ByteArray(1000)
+        //        Log.d("WOLOLO", "before read ${inputStream.available()}")
+        //        val size = inputStream.read(bytes, 0, 11)
+        //        Log.d("WOLOLO", "read $size ${inputStream.available()} bytes ${Arrays.toString(bytes)}")
+        //        //sleep(1000)
         //    } while (size > 0)
         //}
-        pages.forEach {
+        escpos.initializePrinter()
+        //sleep(5000)
+        //Log.d("WOLOLO", "done sleeping")
+        val pages = pdfToBitmap(document, 203, 5.1, 8.0)
+        val bytes = ByteArray(1000)
+        pages.forEachIndexed { index, it ->
             printBitmap(it, escpos)
             escpos.cut(EscPos.CutMode.PART)
+            Log.d("WOLOLO", "page ${index}")
+            waitForBytesOrTimeout(inputStream, 22, 10000)
         }
+        waitForBytesOrTimeout(inputStream, 22, 10000)
         escpos.flush()
         outputStream.flush()
         // Trying to close the output stream or the bluetooth socket here will end up in half printed documents
-        // TODO: maybe sleep then close?
-        //escpos.close()
-        //clean()
+        inputStream.close()
+        escpos.close()
+        clean()
     }
 
     private fun clean() {
@@ -275,6 +320,20 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
     override fun onDestroy() {}
 }
 
+private fun copyToTmpFile(cacheDir: File, fd: FileDescriptor): ParcelFileDescriptor {
+    val outputFile = File.createTempFile(System.currentTimeMillis().toString(), null, cacheDir)
+    val outputStream = FileOutputStream(outputFile)
+    val inputStream = FileInputStream(fd)
+    val buffer = ByteArray(8192)
+    var length: Int
+    while (inputStream.read(buffer).also { length = it } > 0) {
+        outputStream.write(buffer, 0, length)
+    }
+    inputStream.close()
+    outputStream.close()
+    return ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_ONLY)
+}
+
 class FarminOSPrintService : PrintService() {
     private lateinit var preferences: SharedPreferences
     lateinit var printers: List<PrinterInfo>
@@ -305,20 +364,10 @@ class FarminOSPrintService : PrintService() {
 
         if (printer != null && document != null) {
             // we copy the document in the main thread, otherwise you get: java.lang.IllegalAccessError
-            val outputFile = File.createTempFile(System.currentTimeMillis().toString(), null, this.cacheDir)
-            val outputStream = FileOutputStream(outputFile)
-            val inputStream = FileInputStream(document.fileDescriptor)
-            val buffer = ByteArray(8192)
-            var length: Int
-            while (inputStream.read(buffer).also { length = it } > 0) {
-                outputStream.write(buffer, 0, length)
-            }
-            inputStream.close()
-            outputStream.close()
-
+            val copy = copyToTmpFile(this.cacheDir, document.fileDescriptor)
             // TODO
             //val thread = CITIZENPrintJobThread(this, printer, ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_WRITE))
-            val thread = ESCPOSPrintJobThread(this, printer, ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_WRITE))
+            val thread = ESCPOSPrintJobThread(this, printer, copy)
             printJob.start()
             thread.start()
             thread.join()
