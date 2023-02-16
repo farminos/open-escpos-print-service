@@ -151,12 +151,30 @@ private fun getBtSocket(context: Context, address: String): BluetoothSocket {
     return btSocket;
 }
 
-@SuppressLint("MissingPermission")
-private fun escPrintOneBitmap(context: Context, address: String, bitmap: Bitmap, firstPage: bool) {
+private fun cut(context: Context, address: String){
+    sleep(500)
     val btSocket = getBtSocket(context, address)
     val outputStream = btSocket.outputStream
     val inputStream = btSocket.inputStream
     val escpos = EscPos(outputStream)
+    escpos.cut(EscPos.CutMode.PART)
+    waitForBytesOrTimeout(inputStream, 44, 10000)
+    escpos.close()
+    btSocket.close()
+}
+
+@SuppressLint("MissingPermission")
+private fun escPrintOneBitmap(context: Context, address: String, bitmap: Bitmap, firstPage: Boolean) {
+    if (!firstPage) {
+        sleep(500)
+    }
+    val btSocket = getBtSocket(context, address)
+    val outputStream = btSocket.outputStream
+    val inputStream = btSocket.inputStream
+    val escpos = EscPos(outputStream)
+    if (!firstPage) {
+        escpos.cut(EscPos.CutMode.PART)
+    }
     printBitmap(bitmap, escpos)
     waitForBytesOrTimeout(inputStream, 44, 10000)
     escpos.flush()
@@ -164,6 +182,7 @@ private fun escPrintOneBitmap(context: Context, address: String, bitmap: Bitmap,
     inputStream.close()
     escpos.close()
     btSocket.close()
+    return
     sleep(500)
     val btSocket2 = getBtSocket(context, address)
     Log.d("WOLOLO", "socket2 before connect")
@@ -172,7 +191,7 @@ private fun escPrintOneBitmap(context: Context, address: String, bitmap: Bitmap,
     val inputStream2 = btSocket2.inputStream
     val escpos2 = EscPos(outputStream2)
     Log.d("WOLOLO", "socket2 cut")
-    escpos2.cut(EscPos.CutMode.FULL)
+    escpos2.cut(EscPos.CutMode.PART)
     waitForBytesOrTimeout(inputStream2, 44, 10000)
     escpos2.close()
     btSocket2.close()
@@ -214,10 +233,11 @@ internal class ESCPOSPrintJobThread(
             //printBitmap(it, escpos)
             //Log.d("WOLOLO", "page ${index}")
             //waitForBytesOrTimeout(inputStream, 22, 10000)
-            //escpos.cut(EscPos.CutMode.FULL)
+            //escpos.cut(EscPos.CutMode.PART)
         }
+        cut(context, address)
         //waitForBytesOrTimeout(inputStream, 22, 10000)
-        //escpos.cut(EscPos.CutMode.FULL)
+        //escpos.cut(EscPos.CutMode.PART)
         //Log.d("WOLOLO", "after cut")
         //escpos.flush()
         //outputStream.flush()
@@ -234,7 +254,7 @@ internal class ESCPOSPrintJobThread(
         //this.btSocket.connect()
         //val outputStream2 = this.btSocket.outputStream
         //val escpos2 = EscPos(outputStream2)
-        //escpos2.cut(EscPos.CutMode.FULL)
+        //escpos2.cut(EscPos.CutMode.PART)
         //Log.d("WOLOLO", "after cut2")
     }
 
