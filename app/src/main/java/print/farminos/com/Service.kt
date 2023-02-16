@@ -1,8 +1,5 @@
 package print.farminos.com
 
-import android.annotation.SuppressLint
-import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Bitmap
@@ -14,6 +11,7 @@ import android.os.ParcelFileDescriptor
 import android.print.PrintAttributes
 import android.print.PrintAttributes.Margins
 import android.print.PrintAttributes.Resolution
+import android.print.PrintJobInfo
 import android.print.PrinterCapabilitiesInfo
 import android.print.PrinterId
 import android.print.PrinterInfo
@@ -23,29 +21,18 @@ import android.printservice.PrinterDiscoverySession
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
-import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.core.content.ContextCompat
 import com.citizen.jpos.command.CPCLConst
 import com.citizen.jpos.printer.CPCLPrinter
 import com.citizen.port.android.BluetoothPort
 import com.citizen.request.android.RequestHandler
-import com.github.anastaciocintra.escpos.EscPos
-import com.github.anastaciocintra.escpos.image.BitImageWrapper
-import com.github.anastaciocintra.escpos.image.BitonalOrderedDither
-import com.github.anastaciocintra.escpos.image.EscPosImage
+import com.dantsu.escposprinter.EscPosPrinterCommands
+import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections
 import kotlinx.coroutines.*
-import java.io.File
-import java.io.FileDescriptor
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.io.InputStream
-import java.io.OutputStream
-import java.lang.Thread.sleep
-import java.text.SimpleDateFormat
+import java.io.*
 import java.util.*
-import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.concurrent.thread
 import kotlin.math.ceil
+
 
 private fun cmToDots(cm: Double, dpi: Int): Int {
     return ceil((cm / 2.54) * dpi).toInt()
@@ -98,171 +85,48 @@ private fun pdfToBitmap(document: ParcelFileDescriptor, dpi: Int, w: Double, h: 
     renderer.close()
 }
 
-
-
-fun printBitmap(bitmap: Bitmap, escpos: EscPos) {
-    val algorithm = BitonalOrderedDither()
-    val escposImage = EscPosImage(BitmapImage(bitmap), algorithm)
-    val wrapper = BitImageWrapper()
-    escpos.write(wrapper, escposImage)
-    escpos.flush()
-}
-//private fun waitForBytes(inputStream: InputStream, n: Long) {
-//    var skipped: Long = 0
-//    do {
-//        Log.d("WOLOLO", "waitForBytes skipping ${n - skipped}")
-//        skipped += inputStream.skip(n - skipped)
-//        Log.d("WOLOLO", "waitForBytes ${skipped}, ${n}")
-//    } while (skipped < n)
-//}
-
-private fun waitForBytes(inputStream: InputStream, n: Int) {
-    val bytes = ByteArray(n)
-    var skipped = 0
-    do {
-        Log.d("WOLOLO", "waitForBytes skipping ${n - skipped}")
-        skipped += inputStream.read(bytes, skipped, n - skipped)
-        Log.d("WOLOLO", "waitForBytes ${skipped}, ${n} ${Arrays.toString(bytes)}")
-    } while (skipped < n)
-}
-
-private fun waitForBytesOrTimeout(inputStream: InputStream, n: Int, timeout: Int) {
-    val job = thread(start = true) {
-        try {
-            waitForBytes(inputStream, n)
-        } catch (error: java.lang.Exception) {
-            println("boom $error")
-        }
+private fun bitmapSlices(bitmap: Bitmap, step: Int) = sequence<Bitmap> {
+    val width: Int = bitmap.width
+    val height: Int = bitmap.height
+    for (y in 0 until height step step) {
+        val slice = Bitmap.createBitmap(
+            bitmap,
+            0,
+            y,
+            width,
+            if (y + step >= height) height - y else step
+        )
+        yield(slice)
     }
-    job.join(timeout.toLong())
-    println("main: Now I can quit.")
-}
-
-val SERIAL_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-
-@SuppressLint("MissingPermission")
-private fun getBtSocket(context: Context, address: String): BluetoothSocket {
-    val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
-    val bluetoothAdapter = bluetoothManager.adapter
-    val device = bluetoothAdapter.getRemoteDevice(address)
-    Log.d("WOLOLO", "$address $device")
-    val btSocket = device.createInsecureRfcommSocketToServiceRecord(SERIAL_UUID);
-    btSocket.connect()
-    return btSocket;
-}
-
-private fun cut(context: Context, address: String){
-    sleep(500)
-    val btSocket = getBtSocket(context, address)
-    val outputStream = btSocket.outputStream
-    val inputStream = btSocket.inputStream
-    val escpos = EscPos(outputStream)
-    escpos.cut(EscPos.CutMode.PART)
-    waitForBytesOrTimeout(inputStream, 44, 10000)
-    escpos.close()
-    btSocket.close()
-}
-
-@SuppressLint("MissingPermission")
-private fun escPrintOneBitmap(context: Context, address: String, bitmap: Bitmap, firstPage: Boolean) {
-    if (!firstPage) {
-        sleep(500)
-    }
-    val btSocket = getBtSocket(context, address)
-    val outputStream = btSocket.outputStream
-    val inputStream = btSocket.inputStream
-    val escpos = EscPos(outputStream)
-    if (!firstPage) {
-        escpos.cut(EscPos.CutMode.PART)
-    }
-    printBitmap(bitmap, escpos)
-    waitForBytesOrTimeout(inputStream, 44, 10000)
-    escpos.flush()
-    outputStream.flush()
-    inputStream.close()
-    escpos.close()
-    btSocket.close()
-    return
-    sleep(500)
-    val btSocket2 = getBtSocket(context, address)
-    Log.d("WOLOLO", "socket2 before connect")
-    Log.d("WOLOLO", "socket2 connect")
-    val outputStream2 = btSocket2.outputStream
-    val inputStream2 = btSocket2.inputStream
-    val escpos2 = EscPos(outputStream2)
-    Log.d("WOLOLO", "socket2 cut")
-    escpos2.cut(EscPos.CutMode.PART)
-    waitForBytesOrTimeout(inputStream2, 44, 10000)
-    escpos2.close()
-    btSocket2.close()
 }
 
 internal class ESCPOSPrintJobThread(
     private val context: FarminOSPrintService,
     private val printer: PrinterInfo,
+    private val info: PrintJobInfo,
     private val document: ParcelFileDescriptor
 ) : Thread() {
-    private lateinit var btSocket: BluetoothSocket
-
-    @SuppressLint("MissingPermission")
     override fun run() {
-        val address = printer.id.localId
-        //val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
-        //val bluetoothAdapter = bluetoothManager.adapter
-        //val device = bluetoothAdapter.getRemoteDevice(address)
-        //Log.d("WOLOLO", "$address $device")
-        //this.btSocket = device.createInsecureRfcommSocketToServiceRecord(SERIAL_UUID);
-        //this.btSocket.connect()
-        //val outputStream = this.btSocket.outputStream
-        //val escpos = EscPos(outputStream)
-        //var bytesReadFromInput = 0
-        //val inputStream = this.btSocket.inputStream
-        ////thread(start = true) {
-        ////    do {
-        ////        val bytes = ByteArray(1000)
-        ////        Log.d("WOLOLO", "before read ${inputStream.available()}")
-        ////        val size = inputStream.read(bytes, 0, 11)
-        ////        Log.d("WOLOLO", "read $size ${inputStream.available()} bytes ${Arrays.toString(bytes)}")
-        ////        //sleep(1000)
-        ////    } while (size > 0)
-        ////}
-        //escpos.initializePrinter()
-        val pages = pdfToBitmap(document, 203, 5.1, 8.0)
-        pages.forEachIndexed { index, it ->
-            escPrintOneBitmap(this.context, address, it, index == 0)
-            //printBitmap(it, escpos)
-            //Log.d("WOLOLO", "page ${index}")
-            //waitForBytesOrTimeout(inputStream, 22, 10000)
-            //escpos.cut(EscPos.CutMode.PART)
-        }
-        cut(context, address)
-        //waitForBytesOrTimeout(inputStream, 22, 10000)
-        //escpos.cut(EscPos.CutMode.PART)
-        //Log.d("WOLOLO", "after cut")
-        //escpos.flush()
-        //outputStream.flush()
-        //// Trying to close the output stream or the bluetooth socket here will end up in half printed documents
-        //inputStream.close()
-        //escpos.close()
-        //clean()
-        //sleep(1000)
-        //Log.d("WOLOLO", "1s after clean")
-        //val bluetoothManager2: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
-        //val bluetoothAdapter2 = bluetoothManager2.adapter
-        //val device2 = bluetoothAdapter2.getRemoteDevice(address)
-        //this.btSocket = device2.createInsecureRfcommSocketToServiceRecord(SERIAL_UUID);
-        //this.btSocket.connect()
-        //val outputStream2 = this.btSocket.outputStream
-        //val escpos2 = EscPos(outputStream2)
-        //escpos2.cut(EscPos.CutMode.PART)
-        //Log.d("WOLOLO", "after cut2")
-    }
-
-    private fun clean() {
-        if (this.btSocket.isConnected) {
-            this.btSocket.close()
+        // TODO: !!
+        val w = milsToCm(info.attributes.mediaSize!!.widthMils)
+        val h = milsToCm(info.attributes.mediaSize!!.heightMils)
+        val dpi = info.attributes.resolution!!.horizontalDpi
+        val connection = BluetoothPrintersConnections.selectFirstPaired()
+        val printerCommands = EscPosPrinterCommands(connection)
+        printerCommands.connect()
+        printerCommands.reset()
+        val pages = pdfToBitmap(document, dpi, w, h)
+        pages.forEach { page ->
+            bitmapSlices(page, 128).forEach {
+                printerCommands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
+            }
+            printerCommands.cutPaper()
         }
         this.document.close()
+        // TODO
+        val speed = 3 // cm/s
+        sleep((h / speed * 1000).toLong())
+        printerCommands.disconnect()
     }
 }
 
@@ -345,6 +209,10 @@ internal class CITIZENPrintJobThread(
 
 private fun cmToMils(cm: Double): Int {
     return ceil(cm / 2.54 * 1000).toInt()
+}
+
+private fun milsToCm(mils: Int): Double {
+    return mils / 1000 * 2.54;
 }
 
 class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService) :
@@ -439,7 +307,7 @@ class FarminOSPrintService : PrintService() {
             val copy = copyToTmpFile(this.cacheDir, document.fileDescriptor)
             // TODO
             //val thread = CITIZENPrintJobThread(this, printer, ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_WRITE))
-            val thread = ESCPOSPrintJobThread(this, printer, copy)
+            val thread = ESCPOSPrintJobThread(this, printer, printJob.info, copy)
             printJob.start()
             thread.start()
             thread.join()
