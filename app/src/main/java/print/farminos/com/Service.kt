@@ -1,5 +1,6 @@
 package print.farminos.com
 
+import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Bitmap
@@ -27,6 +28,7 @@ import com.citizen.jpos.printer.CPCLPrinter
 import com.citizen.port.android.BluetoothPort
 import com.citizen.request.android.RequestHandler
 import com.dantsu.escposprinter.EscPosPrinterCommands
+import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections
 import kotlinx.coroutines.*
 import java.io.*
@@ -65,7 +67,7 @@ private fun convertTransparentToWhite(bitmap: Bitmap) {
     )
 }
 
-private fun pdfToBitmap(document: ParcelFileDescriptor, dpi: Int, w: Double, h: Double) = sequence<Bitmap> {
+private fun pdfToBitmaps(document: ParcelFileDescriptor, dpi: Int, w: Double, h: Double) = sequence<Bitmap> {
     val renderer = PdfRenderer(document)
     val pageCount = renderer.pageCount
     for (i in 0 until pageCount) {
@@ -75,7 +77,6 @@ private fun pdfToBitmap(document: ParcelFileDescriptor, dpi: Int, w: Double, h: 
         val transform = Matrix()
         val ratio = width.toFloat() / page.width
         transform.postScale(ratio, ratio)
-        Log.d("WOLOLO", "w=$w h=$h dpi=$dpi width=$width height=$height page.width=${page.width} page.height=${page.height}")
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         convertTransparentToWhite(bitmap)
         page.render(bitmap, null, transform, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
@@ -111,11 +112,15 @@ internal class ESCPOSPrintJobThread(
         val w = milsToCm(info.attributes.mediaSize!!.widthMils)
         val h = milsToCm(info.attributes.mediaSize!!.heightMils)
         val dpi = info.attributes.resolution!!.horizontalDpi
-        val connection = BluetoothPrintersConnections.selectFirstPaired()
+        // TODO: pass the bluetooth device from the print service
+        val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
+        val bluetoothAdapter = bluetoothManager.adapter
+        val device = bluetoothAdapter.getRemoteDevice(printer.id.localId)
+        val connection = BluetoothConnection(device)
         val printerCommands = EscPosPrinterCommands(connection)
         printerCommands.connect()
         printerCommands.reset()
-        val pages = pdfToBitmap(document, dpi, w, h)
+        val pages = pdfToBitmaps(document, dpi, w, h)
         pages.forEach { page ->
             bitmapSlices(page, 128).forEach {
                 printerCommands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
@@ -181,7 +186,7 @@ internal class CITIZENPrintJobThread(
 
             cpclPrinter.setMedia(CPCLConst.CMP_CPCL_LABEL)
             // TODO: hardcoded sizes
-            val pages = pdfToBitmap(document, 203, 7.0, 9.0)
+            val pages = pdfToBitmaps(document, 203, 7.0, 9.0)
             pages.forEach {
                 // TODO: labelHeight is hardcoded
                 cpclPrinter.setForm(0, 1, 1, 900, 1)
@@ -212,7 +217,7 @@ private fun cmToMils(cm: Double): Int {
 }
 
 private fun milsToCm(mils: Int): Double {
-    return mils / 1000 * 2.54;
+    return mils / 1000 * 2.54
 }
 
 class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService) :
