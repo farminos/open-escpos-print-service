@@ -40,8 +40,10 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.lang.Thread.sleep
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.concurrent.thread
 import kotlin.math.ceil
 
@@ -136,6 +138,46 @@ private fun waitForBytesOrTimeout(inputStream: InputStream, n: Int, timeout: Int
     println("main: Now I can quit.")
 }
 
+val SERIAL_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+
+@SuppressLint("MissingPermission")
+private fun getBtSocket(context: Context, address: String): BluetoothSocket {
+    val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
+    val bluetoothAdapter = bluetoothManager.adapter
+    val device = bluetoothAdapter.getRemoteDevice(address)
+    Log.d("WOLOLO", "$address $device")
+    val btSocket = device.createInsecureRfcommSocketToServiceRecord(SERIAL_UUID);
+    btSocket.connect()
+    return btSocket;
+}
+
+@SuppressLint("MissingPermission")
+private fun escPrintOneBitmap(context: Context, address: String, bitmap: Bitmap, firstPage: bool) {
+    val btSocket = getBtSocket(context, address)
+    val outputStream = btSocket.outputStream
+    val inputStream = btSocket.inputStream
+    val escpos = EscPos(outputStream)
+    printBitmap(bitmap, escpos)
+    waitForBytesOrTimeout(inputStream, 44, 10000)
+    escpos.flush()
+    outputStream.flush()
+    inputStream.close()
+    escpos.close()
+    btSocket.close()
+    sleep(500)
+    val btSocket2 = getBtSocket(context, address)
+    Log.d("WOLOLO", "socket2 before connect")
+    Log.d("WOLOLO", "socket2 connect")
+    val outputStream2 = btSocket2.outputStream
+    val inputStream2 = btSocket2.inputStream
+    val escpos2 = EscPos(outputStream2)
+    Log.d("WOLOLO", "socket2 cut")
+    escpos2.cut(EscPos.CutMode.FULL)
+    waitForBytesOrTimeout(inputStream2, 44, 10000)
+    escpos2.close()
+    btSocket2.close()
+}
+
 internal class ESCPOSPrintJobThread(
     private val context: FarminOSPrintService,
     private val printer: PrinterInfo,
@@ -146,44 +188,54 @@ internal class ESCPOSPrintJobThread(
     @SuppressLint("MissingPermission")
     override fun run() {
         val address = printer.id.localId
-        val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
-        val bluetoothAdapter = bluetoothManager.adapter
-        val device = bluetoothAdapter.getRemoteDevice(address)
-        Log.d("WOLOLO", "$address $device")
-        val SERIAL_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-        this.btSocket = device.createInsecureRfcommSocketToServiceRecord(SERIAL_UUID);
-        this.btSocket.connect()
-        val outputStream = this.btSocket.outputStream
-        val escpos = EscPos(outputStream)
-        var bytesReadFromInput = 0
-        val inputStream = this.btSocket.inputStream
-        //thread(start = true) {
-        //    do {
-        //        val bytes = ByteArray(1000)
-        //        Log.d("WOLOLO", "before read ${inputStream.available()}")
-        //        val size = inputStream.read(bytes, 0, 11)
-        //        Log.d("WOLOLO", "read $size ${inputStream.available()} bytes ${Arrays.toString(bytes)}")
-        //        //sleep(1000)
-        //    } while (size > 0)
-        //}
-        escpos.initializePrinter()
-        //sleep(5000)
-        //Log.d("WOLOLO", "done sleeping")
+        //val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
+        //val bluetoothAdapter = bluetoothManager.adapter
+        //val device = bluetoothAdapter.getRemoteDevice(address)
+        //Log.d("WOLOLO", "$address $device")
+        //this.btSocket = device.createInsecureRfcommSocketToServiceRecord(SERIAL_UUID);
+        //this.btSocket.connect()
+        //val outputStream = this.btSocket.outputStream
+        //val escpos = EscPos(outputStream)
+        //var bytesReadFromInput = 0
+        //val inputStream = this.btSocket.inputStream
+        ////thread(start = true) {
+        ////    do {
+        ////        val bytes = ByteArray(1000)
+        ////        Log.d("WOLOLO", "before read ${inputStream.available()}")
+        ////        val size = inputStream.read(bytes, 0, 11)
+        ////        Log.d("WOLOLO", "read $size ${inputStream.available()} bytes ${Arrays.toString(bytes)}")
+        ////        //sleep(1000)
+        ////    } while (size > 0)
+        ////}
+        //escpos.initializePrinter()
         val pages = pdfToBitmap(document, 203, 5.1, 8.0)
-        val bytes = ByteArray(1000)
         pages.forEachIndexed { index, it ->
-            printBitmap(it, escpos)
-            escpos.cut(EscPos.CutMode.PART)
-            Log.d("WOLOLO", "page ${index}")
-            waitForBytesOrTimeout(inputStream, 22, 10000)
+            escPrintOneBitmap(this.context, address, it, index == 0)
+            //printBitmap(it, escpos)
+            //Log.d("WOLOLO", "page ${index}")
+            //waitForBytesOrTimeout(inputStream, 22, 10000)
+            //escpos.cut(EscPos.CutMode.FULL)
         }
-        waitForBytesOrTimeout(inputStream, 22, 10000)
-        escpos.flush()
-        outputStream.flush()
-        // Trying to close the output stream or the bluetooth socket here will end up in half printed documents
-        inputStream.close()
-        escpos.close()
-        clean()
+        //waitForBytesOrTimeout(inputStream, 22, 10000)
+        //escpos.cut(EscPos.CutMode.FULL)
+        //Log.d("WOLOLO", "after cut")
+        //escpos.flush()
+        //outputStream.flush()
+        //// Trying to close the output stream or the bluetooth socket here will end up in half printed documents
+        //inputStream.close()
+        //escpos.close()
+        //clean()
+        //sleep(1000)
+        //Log.d("WOLOLO", "1s after clean")
+        //val bluetoothManager2: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
+        //val bluetoothAdapter2 = bluetoothManager2.adapter
+        //val device2 = bluetoothAdapter2.getRemoteDevice(address)
+        //this.btSocket = device2.createInsecureRfcommSocketToServiceRecord(SERIAL_UUID);
+        //this.btSocket.connect()
+        //val outputStream2 = this.btSocket.outputStream
+        //val escpos2 = EscPos(outputStream2)
+        //escpos2.cut(EscPos.CutMode.FULL)
+        //Log.d("WOLOLO", "after cut2")
     }
 
     private fun clean() {
