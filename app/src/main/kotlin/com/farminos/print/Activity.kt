@@ -1,4 +1,4 @@
-package print.farminos.com
+package com.farminos.print
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -23,7 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
-import print.farminos.com.ui.theme.FarminOSCITIZENPrintServiceTheme
+import com.farminos.print.ui.theme.FarminOSCITIZENPrintServiceTheme
 import kotlinx.serialization.Serializable
 
 const val BLUETOOTH_ENABLE_REQUEST = 0

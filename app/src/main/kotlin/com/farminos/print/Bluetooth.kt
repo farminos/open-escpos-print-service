@@ -1,4 +1,4 @@
-package print.farminos.com
+package com.farminos.print
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice

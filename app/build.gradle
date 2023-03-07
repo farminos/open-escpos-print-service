@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace 'print.farminos.com' // TODO: fix namespace & app name
+    namespace 'com.farminos.print'
     compileSdk 33
 
     defaultConfig {
-        applicationId "print.farminos.com"
+        applicationId "com.farminos.print"
         minSdk 21
         targetSdk 33
         versionCode 1

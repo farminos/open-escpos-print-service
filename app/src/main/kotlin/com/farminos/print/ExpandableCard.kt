@@ -1,4 +1,4 @@
-package print.farminos.com
+package com.farminos.print
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearOutSlowInEasing

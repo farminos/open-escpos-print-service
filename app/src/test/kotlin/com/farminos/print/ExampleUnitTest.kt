@@ -1,4 +1,4 @@
-package print.farminos.com
+package com.farminos.print
 
 import org.junit.Test
 

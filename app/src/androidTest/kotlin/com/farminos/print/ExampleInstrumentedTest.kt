@@ -1,4 +1,4 @@
-package print.farminos.com
+package com.farminos.print
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("print.farminos.com", appContext.packageName)
+        assertEquals("com.farminos.print", appContext.packageName)
     }
 }

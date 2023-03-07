@@ -1,4 +1,4 @@
-package print.farminos.com.ui.theme
+package com.farminos.print.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
