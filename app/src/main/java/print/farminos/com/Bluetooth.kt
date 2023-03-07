@@ -2,20 +2,20 @@ package print.farminos.com
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
+import android.content.Context
 import android.util.Log
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 
 data class Option(val value: String, val label: String)
 
@@ -103,10 +103,33 @@ fun LabelledSwitch(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LabelledTextField(
+fun LabelledFloatField(
     label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
+    value: Float,
+    onValueChange: (Float?) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = label)
+        TextField(
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            value = value.toString(),
+            onValueChange = {
+                onValueChange(it.toFloatOrNull())
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LabelledIntField(
+    label: String,
+    value: Int,
+    onValueChange: (Int?) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -116,9 +139,9 @@ fun LabelledTextField(
         Text(text = label)
         TextField(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            value = value,
+            value = value.toString(),
             onValueChange = {
-                onValueChange(it)
+                onValueChange(it.toIntOrNull())
             },
         )
     }
@@ -129,25 +152,26 @@ fun LabelledTextField(
 fun PrinterCard(
     context: Activity,
     printer: BluetoothDevice,
-    enabled: Boolean,
+    settings: PrinterSettings,
 ) {
     ExpandableCard(
         header = {
             Column {
                 Text(text = printer.name)
                 Text(text = printer.address, color = MaterialTheme.colorScheme.secondary)
+                //Text(text = printer.bluetoothClass.deviceClass.toString())
             }
         },
         content = {
             Column {
                 LabelledSwitch(
                     label = "Enabled",
-                    checked = enabled,
+                    checked = settings.enabled,
                     onCheckedChange = {
                         if (it) {
-                            context.addDevice(Printer(printer.name, printer.address))
+                            //context.addDevice(Printer(printer.name, printer.address))
                         } else {
-                            context.removeDevice(Printer(printer.name, printer.address))
+                            //context.removeDevice(Printer(printer.name, printer.address))
                         }
                     },
                 )
@@ -163,26 +187,38 @@ fun PrinterCard(
                         Option(value = "escpos", label = "ESC / POS"),
                         Option(value = "cpcl", label = "Citizen CPCL"),
                     ),
-                    selectedValue="escpos",
+                    selectedValue = settings.driver,
                     onSelect = {
                         Log.d("Settings", "Selected driver $it")
                     }
                 )
-                LabelledTextField(
-                    label = "Paper width (inches)",
-                    value = "",
+                LabelledIntField(
+                    label = "DPI",
+                    value = settings.dpi,
                     onValueChange = {
                     },
                 )
-                LabelledTextField(
+                LabelledFloatField(
+                    label = "Paper width (inches)",
+                    value = settings.width,
+                    onValueChange = {
+                    },
+                )
+                LabelledFloatField(
                     label = "Paper height (inches)",
-                    value = "",
+                    value = settings.height,
+                    onValueChange = {
+                    },
+                )
+                LabelledIntField(
+                    label = "Margins (mils)",
+                    value = settings.marginMils,
                     onValueChange = {
                     },
                 )
                 LabelledSwitch(
                     label = "Cut after each page",
-                    checked = false,
+                    checked = settings.cut,
                     onCheckedChange = {
                         Log.d("Settings", "Change cut $it")
                     },
@@ -196,20 +232,32 @@ fun PrinterCard(
 fun BluetoothComposable(
     context: Activity
 ) {
+    val preferences = context.getPreferences(Context.MODE_PRIVATE)
+    val defaultPrinterAddress = preferences.getString("defaultPrinterAddress", "")
+    val printers: Map<String, PrinterSettings> = Json.decodeFromString<Map<String, PrinterSettings>>(
+        preferences.getString("printers", "{}") ?: "{}"
+    )
+
     val bluetoothState by context.bluetoothState.collectAsState()
-    val printersState by context.printersState.collectAsState()
+    //val printersState by context.printersState.collectAsState()
 
 
     if (bluetoothState) {
-        context.bluetoothAdapter.bondedDevices.forEach {
-            val added = printersState.any { printer ->
-                it.address.equals(printer.address)
-            }
+        printers.forEach { (address, printerSettings) ->
+        }
+        context.bluetoothAdapter.bondedDevices
+            .filter { it.bluetoothClass.deviceClass == 1664 }  // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
+            .forEach {
+            val settings = printers[it.address] ?: DEFAULT_PRINTER_SETTINGS
+            val added = false
+            //val added = printersState.any { printer ->
+            //    it.address.equals(printer.address)
+            //}
 
             PrinterCard(
                 context = context,
                 printer = it,
-                enabled = added,
+                settings = settings,
             )
         }
     }

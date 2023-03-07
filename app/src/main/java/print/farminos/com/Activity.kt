@@ -5,11 +5,7 @@ import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.content.SharedPreferences
+import android.content.*
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -20,17 +16,17 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import print.farminos.com.ui.theme.FarminOSCITIZENPrintServiceTheme
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 
 const val BLUETOOTH_ENABLE_REQUEST = 0
 const val BLUETOOTH_PERMISSIONS_REQUEST = 1
@@ -38,26 +34,44 @@ const val BLUETOOTH_PERMISSIONS_REQUEST = 1
 val PERMISSIONS =
     listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
 
+@Serializable
+data class PrinterSettings(
+    val enabled: Boolean,
+    val driver: String,
+    val dpi: Int,
+    val width: Float,
+    val height: Float,
+    val marginMils: Int,
+    val cut: Boolean,
+)
+
+val DEFAULT_PRINTER_SETTINGS = PrinterSettings(
+    enabled = false,
+    driver = "escpos",
+    dpi = 203,
+    width = 5.1f,
+    height = 8.0f,
+    marginMils = 0,
+    cut = false,
+)
+
 class Activity : ComponentActivity() {
     lateinit var bluetoothAdapter: BluetoothAdapter
-    private lateinit var preferences: SharedPreferences
 
     private val receiver = BluetoothBroadcastReceiver(this)
 
     lateinit var bluetoothState : MutableStateFlow<Boolean>
-    lateinit var printersState : MutableStateFlow<List<Printer>>
+    //lateinit var printersState : MutableStateFlow<List<Printer>>
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // get shared preferences
-        preferences = this.getSharedPreferences("FarminOSPrintService", Context.MODE_PRIVATE)
 
         // initialize printers state
-        printersState = MutableStateFlow(preferences.all.entries.map {
-            Printer(it.value as String, it.key)
-        })
+        //printersState = MutableStateFlow(preferences.all.entries.map {
+        //    Printer(it.value as String, it.key)
+        //})
 
         // get bluetooth adapter
         val bluetoothManager: BluetoothManager = getSystemService(BluetoothManager::class.java)
@@ -201,23 +215,23 @@ class Activity : ComponentActivity() {
         }
     }
 
-    fun addDevice(printer: Printer) {
-        printersState.update {
-            if (it.contains(printer)) { it } else { it + printer }
-        }
-        with (preferences.edit()) {
-            putString(printer.address, printer.name)
-            apply()
-        }
-    }
+    //fun addDevice(printer: Printer) {
+    //    printersState.update {
+    //        if (it.contains(printer)) { it } else { it + printer }
+    //    }
+    //    with (preferences.edit()) {
+    //        putString(printer.address, printer.name)
+    //        apply()
+    //    }
+    //}
 
-    fun removeDevice(printer: Printer) {
-        printersState.update {
-            it -> it.filter { it.address != printer.address }
-        }
-        with (preferences.edit()) {
-            remove(printer.address)
-            apply()
-        }
-    }
+    //fun removeDevice(printer: Printer) {
+    //    printersState.update {
+    //        it -> it.filter { it.address != printer.address }
+    //    }
+    //    with (preferences.edit()) {
+    //        remove(printer.address)
+    //        apply()
+    //    }
+    //}
 }
