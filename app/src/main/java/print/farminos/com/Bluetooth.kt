@@ -1,16 +1,51 @@
 package print.farminos.com
 
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothDevice
+import android.util.Log
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 
+@Composable
+fun PrinterCard(
+    context: Activity,
+    printer: BluetoothDevice,
+    enabled: Boolean,
+) {
+    ExpandableCard(
+        header = {
+            Column {
+                Text(text = printer.name)
+                Text(text = printer.address, color = MaterialTheme.colorScheme.secondary)
+            }
+        },
+        content = {
+            Column() {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(text = "Enabled")
+                    Switch(
+                        checked = enabled,
+                        onCheckedChange = {
+                            if (it) {
+                                context.addDevice(Printer(printer.name, printer.address))
+                            } else {
+                                context.removeDevice(Printer(printer.name, printer.address))
+                            }
+                        }
+                    )
+                }
+                Text(text = "wololo")
+            }
+        }
+    )
+}
 @SuppressLint("MissingPermission")
 @Composable
 fun BluetoothComposable(
@@ -19,34 +54,19 @@ fun BluetoothComposable(
     val bluetoothState by context.bluetoothState.collectAsState()
     val printersState by context.printersState.collectAsState()
 
+
     if (bluetoothState) {
         context.bluetoothAdapter.bondedDevices.forEach {
             val added = printersState.any { printer ->
                 it.address.equals(printer.address)
             }
 
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth().padding(10.dp)
-            ) {
-                Column {
-                    Text(text = it.name)
-                    Text(text = it.address, color = MaterialTheme.colorScheme.secondary)
-                }
-                Button(
-                    onClick = {
-                        if (added) {
-                            context.removeDevice(Printer(it.name, it.address))
-                        } else {
-                            context.addDevice(Printer(it.name, it.address))
-                        }
-                    },
-                ) {
-                    Text(text = if (added) "remove" else "add")
-                }
-            }
+            PrinterCard(
+                context = context,
+                printer = it,
+                enabled = added,
+            )
         }
-        return
     }
 
     Button(onClick = {
