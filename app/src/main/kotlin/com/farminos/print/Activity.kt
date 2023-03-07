@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
+import androidx.datastore.core.Serializer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import com.farminos.print.ui.theme.FarminOSCITIZENPrintServiceTheme
@@ -32,8 +33,29 @@ const val BLUETOOTH_PERMISSIONS_REQUEST = 1
 val PERMISSIONS =
     listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
 
+//object SettingsSerializer : Serializer<Settings> {
+//    override val defaultValue: Settings = Settings.getDefaultInstance()
+//
+//    override suspend fun readFrom(input: InputStream): Settings {
+//        try {
+//            return Settings.parseFrom(input)
+//        } catch (exception: InvalidProtocolBufferException) {
+//            throw CorruptionException("Cannot read proto.", exception)
+//        }
+//    }
+//
+//    override suspend fun writeTo(
+//        t: Settings,
+//        output: OutputStream) = t.writeTo(output)
+//}
+
+//val Context.settingsDataStore: DataStore<Settings> by dataStore(
+//    fileName = "settings.pb",
+//    serializer = SettingsSerializer
+//)
+
 @Serializable
-data class PrinterSettings(
+data class PrinterSettingsX(
     val enabled: Boolean,
     val driver: String,
     val dpi: Int,
@@ -43,7 +65,7 @@ data class PrinterSettings(
     val cut: Boolean,
 )
 
-val DEFAULT_PRINTER_SETTINGS = PrinterSettings(
+val DEFAULT_PRINTER_SETTINGS = PrinterSettingsX(
     enabled = false,
     driver = "escpos",
     dpi = 203,
@@ -206,7 +228,7 @@ class Activity : ComponentActivity() {
         }
     }
 
-    fun updatePrinterSettings(address: String, settings: PrinterSettings) {
+    fun updatePrinterSettings(address: String, settings: PrinterSettingsX) {
         //with (preferences.edit()) {
         //    putString(printer.address, printer.name)
         //    apply()

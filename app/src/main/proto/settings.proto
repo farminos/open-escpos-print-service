@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+option java_package = "com.farminos.print";
+option java_multiple_files = true;
+
+enum Driver {
+  ESC_POS = 0;
+  CPCL = 1;
+}
+
+message PrinterSettings {
+  bool enabled = 1;
+  Driver driver = 2;
+  int32 dpi = 3;
+  float width = 4;
+  float height = 5;
+  int32 margin_mils = 6;
+  bool cut = 7;
+}
+
+message Settings {
+  string default_printer = 1;
+  map<string, PrinterSettings> printers = 2;
+}

@@ -151,7 +151,7 @@ fun LabelledIntField(
 fun PrinterCard(
     context: Activity,
     printer: BluetoothDevice,
-    settings: PrinterSettings,
+    settings: PrinterSettingsX,
     defaultPrinterAddress: String,
 ) {
     ExpandableCard(
@@ -234,7 +234,7 @@ fun BluetoothComposable(
 ) {
     val preferences = context.getPreferences(Context.MODE_PRIVATE)
     val defaultPrinterAddress = preferences.getString("defaultPrinterAddress", "")
-    val printers: Map<String, PrinterSettings> = Json.decodeFromString(
+    val printers: Map<String, PrinterSettingsX> = Json.decodeFromString(
         preferences.getString("printers", "{}") ?: "{}"
     )
 
