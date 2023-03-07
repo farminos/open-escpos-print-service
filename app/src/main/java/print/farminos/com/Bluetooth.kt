@@ -35,8 +35,7 @@ fun MenuSelect(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text = "Driver")
-        Box(
-            ) {
+        Box {
             TextField(
                 value = selectedOption?.label ?: "",
                 onValueChange = {
@@ -153,6 +152,7 @@ fun PrinterCard(
     context: Activity,
     printer: BluetoothDevice,
     settings: PrinterSettings,
+    defaultPrinterAddress: String,
 ) {
     ExpandableCard(
         header = {
@@ -177,7 +177,7 @@ fun PrinterCard(
                 )
                 LabelledSwitch(
                     label = "Default printer",
-                    checked = false,
+                    checked = printer.address == defaultPrinterAddress,
                     onCheckedChange = {
                         Log.d("Settings", "Change default $it")
                     },
@@ -234,30 +234,24 @@ fun BluetoothComposable(
 ) {
     val preferences = context.getPreferences(Context.MODE_PRIVATE)
     val defaultPrinterAddress = preferences.getString("defaultPrinterAddress", "")
-    val printers: Map<String, PrinterSettings> = Json.decodeFromString<Map<String, PrinterSettings>>(
+    val printers: Map<String, PrinterSettings> = Json.decodeFromString(
         preferences.getString("printers", "{}") ?: "{}"
     )
 
     val bluetoothState by context.bluetoothState.collectAsState()
-    //val printersState by context.printersState.collectAsState()
 
 
     if (bluetoothState) {
-        printers.forEach { (address, printerSettings) ->
-        }
         context.bluetoothAdapter.bondedDevices
             .filter { it.bluetoothClass.deviceClass == 1664 }  // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
             .forEach {
             val settings = printers[it.address] ?: DEFAULT_PRINTER_SETTINGS
-            val added = false
-            //val added = printersState.any { printer ->
-            //    it.address.equals(printer.address)
-            //}
 
             PrinterCard(
                 context = context,
                 printer = it,
                 settings = settings,
+                defaultPrinterAddress = defaultPrinterAddress ?: "",
             )
         }
     }

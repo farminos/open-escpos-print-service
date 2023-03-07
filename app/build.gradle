@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace 'print.farminos.com'
+    namespace 'print.farminos.com' // TODO: fix namespace & app name
     compileSdk 33
 
     defaultConfig {
@@ -48,7 +48,8 @@ android {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
+    implementation("androidx.datastore:datastore:1.0.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")  // TODO: remove ?
     implementation files('libs/Citizen_Android_1093.jar')
     implementation 'androidx.core:core-ktx:1.9.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.1'

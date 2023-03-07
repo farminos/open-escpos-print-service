@@ -25,8 +25,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import print.farminos.com.ui.theme.FarminOSCITIZENPrintServiceTheme
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
 
 const val BLUETOOTH_ENABLE_REQUEST = 0
 const val BLUETOOTH_PERMISSIONS_REQUEST = 1
@@ -61,17 +59,10 @@ class Activity : ComponentActivity() {
     private val receiver = BluetoothBroadcastReceiver(this)
 
     lateinit var bluetoothState : MutableStateFlow<Boolean>
-    //lateinit var printersState : MutableStateFlow<List<Printer>>
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-
-        // initialize printers state
-        //printersState = MutableStateFlow(preferences.all.entries.map {
-        //    Printer(it.value as String, it.key)
-        //})
 
         // get bluetooth adapter
         val bluetoothManager: BluetoothManager = getSystemService(BluetoothManager::class.java)
@@ -213,6 +204,13 @@ class Activity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    fun updatePrinterSettings(address: String, settings: PrinterSettings) {
+        //with (preferences.edit()) {
+        //    putString(printer.address, printer.name)
+        //    apply()
+        //}
     }
 
     //fun addDevice(printer: Printer) {
