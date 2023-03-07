@@ -3,12 +3,103 @@ package print.farminos.com
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.util.Log
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 
+data class Option(val value: String, val label: String)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MenuSelect(
+    options: Array<Option>,
+    selectedValue: String,
+    onSelect: (value: String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedOption = options.find { it.value == selectedValue }
+
+    return Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = "Driver")
+        Box(
+            ) {
+            TextField(
+                value = selectedOption?.label ?: "",
+                onValueChange = {
+                    // noop
+                },
+                readOnly = true,
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = "expand driver select menu"
+                    )
+                }
+            )
+            // This box is rendered on top of the TextField above and catches the clicks as we
+            // cannot have clickable TextFields that are not disabled
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable(
+                        onClick = {
+                            expanded = true
+                        }
+                    )
+            )
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = {
+                    expanded = false
+                }
+            ) {
+                options.forEach {
+                    DropdownMenuItem(
+                        text = {
+                            Text(it.label)
+                        },
+                        onClick = {
+                            onSelect(it.value)
+                            expanded = false
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+@Composable
+fun LabelledSwitch(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = label)
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+        )
+    }
+}
+
+@SuppressLint("MissingPermission")
 @Composable
 fun PrinterCard(
     context: Activity,
@@ -23,25 +114,42 @@ fun PrinterCard(
             }
         },
         content = {
-            Column() {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(text = "Enabled")
-                    Switch(
-                        checked = enabled,
-                        onCheckedChange = {
-                            if (it) {
-                                context.addDevice(Printer(printer.name, printer.address))
-                            } else {
-                                context.removeDevice(Printer(printer.name, printer.address))
-                            }
+            Column {
+                LabelledSwitch(
+                    label = "Enabled",
+                    checked = enabled,
+                    onCheckedChange = {
+                        if (it) {
+                            context.addDevice(Printer(printer.name, printer.address))
+                        } else {
+                            context.removeDevice(Printer(printer.name, printer.address))
                         }
-                    )
-                }
-                Text(text = "wololo")
+                    },
+                )
+                LabelledSwitch(
+                    label = "Default printer",
+                    checked = false,
+                    onCheckedChange = {
+                        Log.d("Settings", "Change default $it")
+                    },
+                )
+                MenuSelect(
+                    options = arrayOf(
+                        Option(value = "escpos", label = "ESC / POS"),
+                        Option(value = "cpcl", label = "Citizen CPCL"),
+                    ),
+                    selectedValue="escpos",
+                    onSelect = {
+                        Log.d("Settings", "Selected driver $it")
+                    }
+                )
+                LabelledSwitch(
+                    label = "Cut after each page",
+                    checked = false,
+                    onCheckedChange = {
+                        Log.d("Settings", "Change cut $it")
+                    },
+                )
             }
         }
     )
