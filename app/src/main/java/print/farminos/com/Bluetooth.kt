@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.KeyboardType
 
 data class Option(val value: String, val label: String)
 
@@ -99,6 +101,29 @@ fun LabelledSwitch(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LabelledTextField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = label)
+        TextField(
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            value = value,
+            onValueChange = {
+                onValueChange(it)
+            },
+        )
+    }
+}
+
 @SuppressLint("MissingPermission")
 @Composable
 fun PrinterCard(
@@ -142,6 +167,18 @@ fun PrinterCard(
                     onSelect = {
                         Log.d("Settings", "Selected driver $it")
                     }
+                )
+                LabelledTextField(
+                    label = "Paper width (inches)",
+                    value = "",
+                    onValueChange = {
+                    },
+                )
+                LabelledTextField(
+                    label = "Paper height (inches)",
+                    value = "",
+                    onValueChange = {
+                    },
                 )
                 LabelledSwitch(
                     label = "Cut after each page",
