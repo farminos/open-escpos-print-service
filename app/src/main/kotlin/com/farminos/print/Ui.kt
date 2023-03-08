@@ -1,8 +1,6 @@
 package com.farminos.print
 
-import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -206,10 +204,9 @@ fun LabelledIntField(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.N)
 @Composable
 fun PrinterCard(
-    context: Activity,
+    context: PrintActivity,
     printer: Printer,
     settings: PrinterSettings,
     defaultPrinterAddress: String,
@@ -301,12 +298,12 @@ fun PrinterCard(
         }
     )
 }
-@RequiresApi(Build.VERSION_CODES.N)
 @Composable
 fun SettingsScreen(
-    context: Activity,
+    context: PrintActivity,
 ) {
     val settings: Settings by context.settingsDataStore.data.collectAsState(Settings.getDefaultInstance())
+    val bluetoothAllowed by context.bluetoothAllowed.collectAsState()
     val bluetoothEnabled by context.bluetoothEnabled.collectAsState()
     val printers by context.printers.collectAsState()
 
@@ -321,7 +318,26 @@ fun SettingsScreen(
                     rememberScrollState(),
                 )
             ) {
-                if (bluetoothEnabled) {
+                if (!bluetoothAllowed) {
+                    Button(
+                        onClick = {
+                            context.requestBluetoothPermissions()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = "Request bluetooth permissions")
+                    }
+
+                } else if (!bluetoothEnabled) {
+                    Button(
+                        onClick = {
+                            context.enableBluetooth()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = "Enable bluetooth")
+                    }
+                } else {
                     printers
                         .forEach {
                             val printerSettings = settings.printersMap[it.address] ?: PrinterSettings.getDefaultInstance()
@@ -332,15 +348,6 @@ fun SettingsScreen(
                                 defaultPrinterAddress = settings.defaultPrinter,
                             )
                         }
-                } else {
-                    Button(
-                        onClick = {
-                            context.enableBluetooth()
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(text = "enable bluetooth")
-                    }
                 }
             }
         }
