@@ -1,25 +1,82 @@
 package com.farminos.print
 
-import android.annotation.SuppressLint
-import android.bluetooth.BluetoothDevice
-import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.datastore.core.DataStore
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
+import androidx.compose.ui.unit.dp
+import com.farminos.print.ui.theme.FarminOSCITIZENPrintServiceTheme
 
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExpandableCard(
+    header: @Composable () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (open) 180f else 0f
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(10.dp)
+            .animateContentSize(
+                animationSpec = tween(
+                    durationMillis = 300,
+                    easing = LinearOutSlowInEasing,
+                )
+            ),
+        onClick = {
+            open = !open
+        },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                header()
+                IconButton(
+                    modifier = Modifier.rotate(rotation),
+                    onClick = {
+                        open = ! open
+                    }
+                ){
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = "drop down arrow"
+                    )
+                }
+            }
+            if (open) {
+                content()
+            }
+        }
+    }
+}
 data class Option(val value: Int, val label: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -150,11 +207,10 @@ fun LabelledIntField(
 }
 
 @RequiresApi(Build.VERSION_CODES.N)
-@SuppressLint("MissingPermission")
 @Composable
 fun PrinterCard(
     context: Activity,
-    printer: BluetoothDevice,
+    printer: Printer,
     settings: PrinterSettings,
     defaultPrinterAddress: String,
 ) {
@@ -163,7 +219,6 @@ fun PrinterCard(
             Column {
                 Text(text = printer.name)
                 Text(text = printer.address, color = MaterialTheme.colorScheme.secondary)
-                //Text(text = printer.bluetoothClass.deviceClass.toString())
             }
         },
         content = {
@@ -246,45 +301,49 @@ fun PrinterCard(
         }
     )
 }
-@SuppressLint("MissingPermission")
+@RequiresApi(Build.VERSION_CODES.N)
 @Composable
-fun BluetoothComposable(
+fun SettingsScreen(
     context: Activity,
-    //dataStore: DataStore<Settings>
 ) {
-    //val settings: Settings by dataStore.data.collectAsState()
-
     val settings: Settings by context.settingsDataStore.data.collectAsState(Settings.getDefaultInstance())
-    //val preferences = context.getPreferences(Context.MODE_PRIVATE)
-    //val defaultPrinterAddress = preferences.getString("defaultPrinterAddress", "")
-    //val printers: Map<String, PrinterSettingsX> = Json.decodeFromString(
-    //    preferences.getString("printers", "{}") ?: "{}"
-    //)
+    val bluetoothEnabled by context.bluetoothEnabled.collectAsState()
+    val printers by context.printers.collectAsState()
 
-    val bluetoothState by context.bluetoothState.collectAsState()
-
-
-    if (bluetoothState) {
-        context.bluetoothAdapter.bondedDevices
-            .filter { it.bluetoothClass.deviceClass == 1664 }  // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
-            .forEach {
-            val printerSettings = settings.printersMap[it.address] ?: PrinterSettings.getDefaultInstance()
-
-            PrinterCard(
-                context = context,
-                printer = it,
-                settings = printerSettings,
-                defaultPrinterAddress = settings.defaultPrinter,
-            )
-        }
-    } else {
-        Button(
-            onClick = {
-                context.enableBluetooth()
-            },
-            modifier = Modifier.fillMaxWidth()
+    FarminOSCITIZENPrintServiceTheme {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
         ) {
-            Text(text = "enable bluetooth")
+            Column(
+                verticalArrangement = Arrangement.Top,
+                modifier = Modifier.verticalScroll(
+                    rememberScrollState(),
+                )
+            ) {
+                if (bluetoothEnabled) {
+                    printers
+                        .forEach {
+                            val printerSettings = settings.printersMap[it.address] ?: PrinterSettings.getDefaultInstance()
+
+                            PrinterCard(
+                                context = context,
+                                printer = it,
+                                settings = printerSettings,
+                                defaultPrinterAddress = settings.defaultPrinter,
+                            )
+                        }
+                } else {
+                    Button(
+                        onClick = {
+                            context.enableBluetooth()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = "enable bluetooth")
+                    }
+                }
+            }
         }
     }
 }

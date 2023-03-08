@@ -29,7 +29,6 @@ import com.citizen.port.android.BluetoothPort
 import com.citizen.request.android.RequestHandler
 import com.dantsu.escposprinter.EscPosPrinterCommands
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
-import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections
 import kotlinx.coroutines.*
 import java.io.*
 import java.util.*

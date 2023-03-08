@@ -13,13 +13,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Surface
-import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
 import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
@@ -27,13 +20,11 @@ import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
-import com.farminos.print.ui.theme.FarminOSCITIZENPrintServiceTheme
 import com.google.protobuf.InvalidProtocolBufferException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -65,54 +56,37 @@ val Context.settingsDataStore: DataStore<Settings> by dataStore(
     serializer = SettingsSerializer
 )
 
-@Serializable
-data class PrinterSettingsX(
-    val enabled: Boolean,
-    val driver: String,
-    val dpi: Int,
-    val width: Float,
-    val height: Float,
-    val marginMils: Int,
-    val cut: Boolean,
-)
+//val DEFAULT_PRINTER_SETTINGS = PrinterSettings(
+//    enabled = false,
+//    driver = "escpos",
+//    dpi = 203,
+//    width = 5.1f,
+//    height = 8.0f,
+//    marginMils = 0,
+//    cut = false,
+//)
 
-val DEFAULT_PRINTER_SETTINGS = PrinterSettingsX(
-    enabled = false,
-    driver = "escpos",
-    dpi = 203,
-    width = 5.1f,
-    height = 8.0f,
-    marginMils = 0,
-    cut = false,
-)
+data class Printer(val address: String, val name: String)
 
 class Activity : ComponentActivity() {
-    lateinit var bluetoothAdapter: BluetoothAdapter
-
     private val receiver = BluetoothBroadcastReceiver(this)
     private val appCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    lateinit var bluetoothEnabled: MutableStateFlow<Boolean>
+    lateinit var bluetoothAdapter: BluetoothAdapter
+    lateinit var printers: MutableStateFlow<List<Printer>>
 
-    lateinit var settingsState : MutableStateFlow<Settings>
-    lateinit var bluetoothState : MutableStateFlow<Boolean>
-
-    public fun updateDefaultPrinter(address: String) {
+    fun updateDefaultPrinter(address: String) {
         appCoroutineScope.launch {
             this@Activity.settingsDataStore.updateData { currentSettings ->
                 currentSettings.toBuilder()
                     .setDefaultPrinter(address)
                     .build()
-                //params.copy {
-                //    startupUnixTimestamp = System.currentTimeMillis()
-                //    startupCounter = params.startupCounter + 1
-                //}
             }
         }
-        //context.settingsDataStore.updateData { currentSettings ->
-        //}
     }
 
     @RequiresApi(Build.VERSION_CODES.N)
-    public fun updatePrinterSetting(address: String, updater: (ps: PrinterSettings.Builder) -> PrinterSettings.Builder) {
+    fun updatePrinterSetting(address: String, updater: (ps: PrinterSettings.Builder) -> PrinterSettings.Builder) {
         appCoroutineScope.launch {
             this@Activity.settingsDataStore.updateData { currentSettings ->
                 val builder = currentSettings.toBuilder()
@@ -123,25 +97,19 @@ class Activity : ComponentActivity() {
         }
     }
 
+    @SuppressLint("MissingPermission")
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        //val dataStore: DataStore<Settings> = MultiProcessDataStoreFactory.create(
-        //    serializer = SettingsSerializer,
-        //    produceFile = {
-        //        File("${this.cacheDir.path}/myapp.preferences_pb")
-        //    }
-        //)
-
-        //val settings = this.settingsDataStore.data.map { settings ->
-        //    settings.printersMap
-        //}
-        //settingsState = MutableStateFlow(settings)
-
         // get bluetooth adapter
         val bluetoothManager: BluetoothManager = getSystemService(BluetoothManager::class.java)
         bluetoothAdapter = bluetoothManager.adapter
+        printers.update {
+            bluetoothAdapter.bondedDevices
+                .filter { it.bluetoothClass.deviceClass == 1664 }  // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
+                .map { Printer(address = it.address, name = it.name) }
+        }
 
         // requesting bluetooth permissions
         if (!bluetoothAllowed()) {
@@ -149,29 +117,13 @@ class Activity : ComponentActivity() {
         }
 
         // initialize bluetooth state
-        bluetoothState = MutableStateFlow(bluetoothAdapter.isEnabled)
+        bluetoothEnabled = MutableStateFlow(bluetoothAdapter.isEnabled)
 
         val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         registerReceiver(receiver, intentFilter)
 
-        val activity = this
-
         setContent {
-            FarminOSCITIZENPrintServiceTheme {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxSize()
-                ) {
-                    Column(
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier.verticalScroll(
-                            rememberScrollState(),
-                        )
-                    ) {
-                        BluetoothComposable(context = activity)
-                    }
-                }
-            }
+            SettingsScreen(context = this)
         }
     }
 
@@ -269,13 +221,13 @@ class Activity : ComponentActivity() {
                 val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
 
                 if (state == BluetoothAdapter.STATE_ON) {
-                    activity.bluetoothState.update {
+                    activity.bluetoothEnabled.update {
                         true
                     }
                     Toast.makeText(context, "bluetooth is on.", Toast.LENGTH_SHORT).show()
                 }
                 if (state == BluetoothAdapter.STATE_OFF) {
-                    activity.bluetoothState.update {
+                    activity.bluetoothEnabled.update {
                         false
                     }
                     Toast.makeText(context, "bluetooth is off.", Toast.LENGTH_SHORT).show()
@@ -283,31 +235,4 @@ class Activity : ComponentActivity() {
             }
         }
     }
-
-    fun updatePrinterSettings(address: String, settings: PrinterSettingsX) {
-        //with (preferences.edit()) {
-        //    putString(printer.address, printer.name)
-        //    apply()
-        //}
-    }
-
-    //fun addDevice(printer: Printer) {
-    //    printersState.update {
-    //        if (it.contains(printer)) { it } else { it + printer }
-    //    }
-    //    with (preferences.edit()) {
-    //        putString(printer.address, printer.name)
-    //        apply()
-    //    }
-    //}
-
-    //fun removeDevice(printer: Printer) {
-    //    printersState.update {
-    //        it -> it.filter { it.address != printer.address }
-    //    }
-    //    with (preferences.edit()) {
-    //        remove(printer.address)
-    //        apply()
-    //    }
-    //}
 }
