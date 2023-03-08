@@ -49,16 +49,6 @@ val Context.settingsDataStore: DataStore<Settings> by dataStore(
     serializer = SettingsSerializer
 )
 
-//val DEFAULT_PRINTER_SETTINGS = PrinterSettings(
-//    enabled = false,
-//    driver = "escpos",
-//    dpi = 203,
-//    width = 5.1f,
-//    height = 8.0f,
-//    marginMils = 0,
-//    cut = false,
-//)
-
 data class Printer(val address: String, val name: String)
 
 class PrintActivity : ComponentActivity() {
