@@ -21,11 +21,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
+import androidx.datastore.core.CorruptionException
+import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
+import androidx.datastore.dataStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import com.farminos.print.ui.theme.FarminOSCITIZENPrintServiceTheme
+import com.google.protobuf.InvalidProtocolBufferException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import java.io.InputStream
+import java.io.OutputStream
 
 const val BLUETOOTH_ENABLE_REQUEST = 0
 const val BLUETOOTH_PERMISSIONS_REQUEST = 1
@@ -33,26 +43,27 @@ const val BLUETOOTH_PERMISSIONS_REQUEST = 1
 val PERMISSIONS =
     listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
 
-//object SettingsSerializer : Serializer<Settings> {
-//    override val defaultValue: Settings = Settings.getDefaultInstance()
-//
-//    override suspend fun readFrom(input: InputStream): Settings {
-//        try {
-//            return Settings.parseFrom(input)
-//        } catch (exception: InvalidProtocolBufferException) {
-//            throw CorruptionException("Cannot read proto.", exception)
-//        }
-//    }
-//
-//    override suspend fun writeTo(
-//        t: Settings,
-//        output: OutputStream) = t.writeTo(output)
-//}
+object SettingsSerializer : Serializer<Settings> {
+    override val defaultValue: Settings = Settings.getDefaultInstance()
 
-//val Context.settingsDataStore: DataStore<Settings> by dataStore(
-//    fileName = "settings.pb",
-//    serializer = SettingsSerializer
-//)
+    override suspend fun readFrom(input: InputStream): Settings {
+        try {
+            return Settings.parseFrom(input)
+        } catch (exception: InvalidProtocolBufferException) {
+            throw CorruptionException("Cannot read proto.", exception)
+        }
+    }
+
+    override suspend fun writeTo(
+        t: Settings,
+        output: OutputStream
+    ) = t.writeTo(output)
+}
+
+val Context.settingsDataStore: DataStore<Settings> by dataStore(
+    fileName = "settings.pb",
+    serializer = SettingsSerializer
+)
 
 @Serializable
 data class PrinterSettingsX(
@@ -79,12 +90,54 @@ class Activity : ComponentActivity() {
     lateinit var bluetoothAdapter: BluetoothAdapter
 
     private val receiver = BluetoothBroadcastReceiver(this)
+    private val appCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    lateinit var settingsState : MutableStateFlow<Settings>
     lateinit var bluetoothState : MutableStateFlow<Boolean>
+
+    public fun updateDefaultPrinter(address: String) {
+        appCoroutineScope.launch {
+            this@Activity.settingsDataStore.updateData { currentSettings ->
+                currentSettings.toBuilder()
+                    .setDefaultPrinter(address)
+                    .build()
+                //params.copy {
+                //    startupUnixTimestamp = System.currentTimeMillis()
+                //    startupCounter = params.startupCounter + 1
+                //}
+            }
+        }
+        //context.settingsDataStore.updateData { currentSettings ->
+        //}
+    }
+
+    @RequiresApi(Build.VERSION_CODES.N)
+    public fun updatePrinterSetting(address: String, updater: (ps: PrinterSettings.Builder) -> PrinterSettings.Builder) {
+        appCoroutineScope.launch {
+            this@Activity.settingsDataStore.updateData { currentSettings ->
+                val builder = currentSettings.toBuilder()
+                val printerBuilder = builder.printersMap.getOrDefault(address, PrinterSettings.getDefaultInstance()).toBuilder()
+                builder.putPrinters(address, updater(printerBuilder).build())
+                return@updateData builder.build()
+            }
+        }
+    }
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        //val dataStore: DataStore<Settings> = MultiProcessDataStoreFactory.create(
+        //    serializer = SettingsSerializer,
+        //    produceFile = {
+        //        File("${this.cacheDir.path}/myapp.preferences_pb")
+        //    }
+        //)
+
+        //val settings = this.settingsDataStore.data.map { settings ->
+        //    settings.printersMap
+        //}
+        //settingsState = MutableStateFlow(settings)
 
         // get bluetooth adapter
         val bluetoothManager: BluetoothManager = getSystemService(BluetoothManager::class.java)
@@ -109,9 +162,12 @@ class Activity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                 ) {
-                    Column(verticalArrangement = Arrangement.Center, modifier = Modifier.verticalScroll(
-                        rememberScrollState(),
-                    )) {
+                    Column(
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.verticalScroll(
+                            rememberScrollState(),
+                        )
+                    ) {
                         BluetoothComposable(context = activity)
                     }
                 }

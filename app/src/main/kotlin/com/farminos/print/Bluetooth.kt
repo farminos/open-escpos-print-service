@@ -3,7 +3,9 @@ package com.farminos.print
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.content.Context
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -14,17 +16,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.datastore.core.DataStore
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 
-data class Option(val value: String, val label: String)
+data class Option(val value: Int, val label: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MenuSelect(
     options: Array<Option>,
-    selectedValue: String,
-    onSelect: (value: String) -> Unit,
+    selectedValue: Int,
+    onSelect: (value: Int) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedOption = options.find { it.value == selectedValue }
@@ -146,12 +149,13 @@ fun LabelledIntField(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.N)
 @SuppressLint("MissingPermission")
 @Composable
 fun PrinterCard(
     context: Activity,
     printer: BluetoothDevice,
-    settings: PrinterSettingsX,
+    settings: PrinterSettings,
     defaultPrinterAddress: String,
 ) {
     ExpandableCard(
@@ -167,11 +171,9 @@ fun PrinterCard(
                 LabelledSwitch(
                     label = "Enabled",
                     checked = settings.enabled,
-                    onCheckedChange = {
-                        if (it) {
-                            //context.addDevice(Printer(printer.name, printer.address))
-                        } else {
-                            //context.removeDevice(Printer(printer.name, printer.address))
+                    onCheckedChange = {checked ->
+                        context.updatePrinterSetting(address = printer.address) {
+                            it.setEnabled(checked)
                         }
                     },
                 )
@@ -180,47 +182,64 @@ fun PrinterCard(
                     checked = printer.address == defaultPrinterAddress,
                     onCheckedChange = {
                         Log.d("Settings", "Change default $it")
+                        context.updateDefaultPrinter(address = printer.address)
                     },
                 )
                 MenuSelect(
                     options = arrayOf(
-                        Option(value = "escpos", label = "ESC / POS"),
-                        Option(value = "cpcl", label = "Citizen CPCL"),
+                        Option(value = Driver.ESC_POS_VALUE, label = "ESC / POS"),
+                        Option(value = Driver.CPCL_VALUE, label = "Citizen CPCL"),
                     ),
-                    selectedValue = settings.driver,
-                    onSelect = {
-                        Log.d("Settings", "Selected driver $it")
+                    selectedValue = settings.driverValue,
+                    onSelect = {value ->
+                        context.updatePrinterSetting(address = printer.address) {
+                            it.setDriverValue(value)
+                        }
                     }
                 )
                 LabelledIntField(
                     label = "DPI",
                     value = settings.dpi,
-                    onValueChange = {
+                    onValueChange = {dpi ->
+                        context.updatePrinterSetting(address = printer.address) {
+                            it.setDpi(dpi ?: 203)
+                        }
                     },
                 )
                 LabelledFloatField(
                     label = "Paper width (inches)",
                     value = settings.width,
-                    onValueChange = {
+                    onValueChange = {width ->
+                        context.updatePrinterSetting(address = printer.address) {
+                            it.setWidth(width ?: 5.1f)
+                        }
                     },
                 )
                 LabelledFloatField(
                     label = "Paper height (inches)",
                     value = settings.height,
-                    onValueChange = {
+                    onValueChange = {height ->
+                        context.updatePrinterSetting(address = printer.address) {
+                            it.setHeight(height ?: 8.0f)
+                        }
                     },
                 )
                 LabelledIntField(
                     label = "Margins (mils)",
                     value = settings.marginMils,
-                    onValueChange = {
+                    onValueChange = {mils ->
+                        context.updatePrinterSetting(address = printer.address) {
+                            it.setMarginMils(mils ?: 0)
+                        }
                     },
                 )
                 LabelledSwitch(
                     label = "Cut after each page",
                     checked = settings.cut,
-                    onCheckedChange = {
-                        Log.d("Settings", "Change cut $it")
+                    onCheckedChange = {cut ->
+                        context.updatePrinterSetting(address = printer.address) {
+                            it.setCut(cut)
+                        }
                     },
                 )
             }
@@ -230,13 +249,17 @@ fun PrinterCard(
 @SuppressLint("MissingPermission")
 @Composable
 fun BluetoothComposable(
-    context: Activity
+    context: Activity,
+    //dataStore: DataStore<Settings>
 ) {
-    val preferences = context.getPreferences(Context.MODE_PRIVATE)
-    val defaultPrinterAddress = preferences.getString("defaultPrinterAddress", "")
-    val printers: Map<String, PrinterSettingsX> = Json.decodeFromString(
-        preferences.getString("printers", "{}") ?: "{}"
-    )
+    //val settings: Settings by dataStore.data.collectAsState()
+
+    val settings: Settings by context.settingsDataStore.data.collectAsState(Settings.getDefaultInstance())
+    //val preferences = context.getPreferences(Context.MODE_PRIVATE)
+    //val defaultPrinterAddress = preferences.getString("defaultPrinterAddress", "")
+    //val printers: Map<String, PrinterSettingsX> = Json.decodeFromString(
+    //    preferences.getString("printers", "{}") ?: "{}"
+    //)
 
     val bluetoothState by context.bluetoothState.collectAsState()
 
@@ -245,20 +268,23 @@ fun BluetoothComposable(
         context.bluetoothAdapter.bondedDevices
             .filter { it.bluetoothClass.deviceClass == 1664 }  // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
             .forEach {
-            val settings = printers[it.address] ?: DEFAULT_PRINTER_SETTINGS
+            val printerSettings = settings.printersMap[it.address] ?: PrinterSettings.getDefaultInstance()
 
             PrinterCard(
                 context = context,
                 printer = it,
-                settings = settings,
-                defaultPrinterAddress = defaultPrinterAddress ?: "",
+                settings = printerSettings,
+                defaultPrinterAddress = settings.defaultPrinter,
             )
         }
-    }
-
-    Button(onClick = {
-        context.enableBluetooth()
-    }, modifier = Modifier.fillMaxWidth()) {
-        Text(text = "enable bluetooth")
+    } else {
+        Button(
+            onClick = {
+                context.enableBluetooth()
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = "enable bluetooth")
+        }
     }
 }
