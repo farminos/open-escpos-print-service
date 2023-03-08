@@ -7,7 +7,6 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.pdf.PdfRenderer
-import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.print.PrintAttributes
 import android.print.PrintAttributes.Margins
@@ -21,7 +20,6 @@ import android.printservice.PrintService
 import android.printservice.PrinterDiscoverySession
 import android.util.Log
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import com.citizen.jpos.command.CPCLConst
 import com.citizen.jpos.printer.CPCLPrinter
@@ -29,11 +27,8 @@ import com.citizen.port.android.BluetoothPort
 import com.citizen.request.android.RequestHandler
 import com.dantsu.escposprinter.EscPosPrinterCommands
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
-import kotlinx.coroutines.*
 import java.io.*
-import java.util.*
 import kotlin.math.ceil
-
 
 private fun cmToDots(cm: Double, dpi: Int): Int {
     return ceil((cm / 2.54) * dpi).toInt()
@@ -229,7 +224,6 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
 
     override fun onValidatePrinters(printerIds: MutableList<PrinterId>) {}
 
-    @RequiresApi(Build.VERSION_CODES.M)
     override fun onStartPrinterStateTracking(printerId: PrinterId) {
         // TODO: this is very hardcoded
         val dpi = 203

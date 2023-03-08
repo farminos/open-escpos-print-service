@@ -26,6 +26,7 @@
         android:theme="@style/Theme.FarminOSCITIZENPrintService"
         tools:targetApi="31">
         <activity
+            android:windowSoftInputMode="adjustResize"
             android:name=".PrintActivity"
             android:exported="true"
             android:theme="@style/Theme.FarminOSCITIZENPrintService">

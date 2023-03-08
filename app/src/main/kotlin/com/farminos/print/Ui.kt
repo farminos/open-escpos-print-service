@@ -1,6 +1,5 @@
 package com.farminos.print
 
-import android.util.Log
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -223,18 +222,27 @@ fun PrinterCard(
                 LabelledSwitch(
                     label = "Enabled",
                     checked = settings.enabled,
-                    onCheckedChange = {checked ->
+                    onCheckedChange = {enabled ->
                         context.updatePrinterSetting(address = printer.address) {
-                            it.setEnabled(checked)
+                            it.setEnabled(enabled)
+                        }
+                        if (!enabled && printer.address === defaultPrinterAddress) {
+                            // disabled printer can't be set as default
+                            context.updateDefaultPrinter("")
                         }
                     },
                 )
                 LabelledSwitch(
                     label = "Default printer",
                     checked = printer.address == defaultPrinterAddress,
-                    onCheckedChange = {
-                        Log.d("Settings", "Change default $it")
-                        context.updateDefaultPrinter(address = printer.address)
+                    onCheckedChange = {isDefault ->
+                        if (isDefault) {
+                            // disabled printer can't be set as default
+                            context.updatePrinterSetting(address = printer.address) {
+                                it.setEnabled(true)
+                            }
+                        }
+                        context.updateDefaultPrinter(address = if (isDefault) printer.address else "")
                     },
                 )
                 MenuSelect(
