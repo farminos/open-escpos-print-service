@@ -71,9 +71,8 @@ data class Printer(val address: String, val name: String)
 class Activity : ComponentActivity() {
     private val receiver = BluetoothBroadcastReceiver(this)
     private val appCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    lateinit var bluetoothEnabled: MutableStateFlow<Boolean>
-    lateinit var bluetoothAdapter: BluetoothAdapter
-    lateinit var printers: MutableStateFlow<List<Printer>>
+    var bluetoothEnabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    var printers: MutableStateFlow<List<Printer>> = MutableStateFlow(listOf())
 
     fun updateDefaultPrinter(address: String) {
         appCoroutineScope.launch {
@@ -98,26 +97,29 @@ class Activity : ComponentActivity() {
     }
 
     @SuppressLint("MissingPermission")
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        // get bluetooth adapter
-        val bluetoothManager: BluetoothManager = getSystemService(BluetoothManager::class.java)
-        bluetoothAdapter = bluetoothManager.adapter
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun updatePrintersList() {
+        val bluetoothAdapter = getSystemService(BluetoothManager::class.java).adapter
+        bluetoothEnabled.update {
+            bluetoothAdapter.isEnabled
+        }
         printers.update {
             bluetoothAdapter.bondedDevices
                 .filter { it.bluetoothClass.deviceClass == 1664 }  // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
                 .map { Printer(address = it.address, name = it.name) }
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        updatePrintersList();
 
         // requesting bluetooth permissions
         if (!bluetoothAllowed()) {
             requestBluetoothPermissions()
         }
 
-        // initialize bluetooth state
-        bluetoothEnabled = MutableStateFlow(bluetoothAdapter.isEnabled)
 
         val intentFilter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         registerReceiver(receiver, intentFilter)

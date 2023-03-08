@@ -325,7 +325,6 @@ fun SettingsScreen(
                     printers
                         .forEach {
                             val printerSettings = settings.printersMap[it.address] ?: PrinterSettings.getDefaultInstance()
-
                             PrinterCard(
                                 context = context,
                                 printer = it,
