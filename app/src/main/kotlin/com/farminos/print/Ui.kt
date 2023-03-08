@@ -159,34 +159,13 @@ fun LabelledSwitch(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LabelledFloatField(
+fun <T> LabelledTextField(
     label: String,
-    value: Float,
-    onValueChange: (Float?) -> Unit,
+    value: String,
+    onValueChange: (T) -> Unit,
+    transform: (String) -> T?,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(text = label)
-        TextField(
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            value = value.toString(),
-            onValueChange = {
-                onValueChange(it.toFloatOrNull())
-            },
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun LabelledIntField(
-    label: String,
-    value: Int,
-    onValueChange: (Int?) -> Unit,
-) {
+    var valueState by remember { mutableStateOf(value) }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -195,10 +174,15 @@ fun LabelledIntField(
         Text(text = label)
         TextField(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            value = value.toString(),
+            value = valueState,
             onValueChange = {
-                onValueChange(it.toIntOrNull())
+                valueState = it
+                val transformed = transform(it)
+                if (transformed != null) {
+                    onValueChange(transformed)
+                }
             },
+            isError = transform(valueState) == null,
         )
     }
 }
@@ -257,39 +241,51 @@ fun PrinterCard(
                         }
                     }
                 )
-                LabelledIntField(
+                LabelledTextField(
                     label = "DPI",
-                    value = settings.dpi,
+                    value = settings.dpi.toString(),
+                    transform = {dpi ->
+                        dpi.toIntOrNull()
+                    },
                     onValueChange = {dpi ->
                         context.updatePrinterSetting(address = printer.address) {
-                            it.setDpi(dpi ?: 203)
+                            it.setDpi(dpi)
                         }
                     },
                 )
-                LabelledFloatField(
+                LabelledTextField(
                     label = "Paper width (inches)",
-                    value = settings.width,
+                    value = settings.width.toString(),
+                    transform = {value ->
+                        value.toFloatOrNull()
+                    },
                     onValueChange = {width ->
                         context.updatePrinterSetting(address = printer.address) {
-                            it.setWidth(width ?: 5.1f)
+                            it.setWidth(width)
                         }
                     },
                 )
-                LabelledFloatField(
+                LabelledTextField(
                     label = "Paper height (inches)",
-                    value = settings.height,
+                    value = settings.height.toString(),
+                    transform = {value ->
+                        value.toFloatOrNull()
+                    },
                     onValueChange = {height ->
                         context.updatePrinterSetting(address = printer.address) {
-                            it.setHeight(height ?: 8.0f)
+                            it.setHeight(height)
                         }
                     },
                 )
-                LabelledIntField(
+                LabelledTextField(
                     label = "Margins (mils)",
-                    value = settings.marginMils,
+                    value = settings.marginMils.toString(),
+                    transform = {mils ->
+                        mils.toIntOrNull()
+                    },
                     onValueChange = {mils ->
                         context.updatePrinterSetting(address = printer.address) {
-                            it.setMarginMils(mils ?: 0)
+                            it.setMarginMils(mils)
                         }
                     },
                 )
