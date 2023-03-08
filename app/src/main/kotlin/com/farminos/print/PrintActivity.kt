@@ -50,6 +50,7 @@ val Context.settingsDataStore: DataStore<Settings> by dataStore(
 )
 
 data class Printer(val address: String, val name: String)
+data class PrinterWithSettings(val printer: Printer, val settings: PrinterSettings)
 
 class PrintActivity : ComponentActivity() {
     private val receiver = BluetoothBroadcastReceiver(this)

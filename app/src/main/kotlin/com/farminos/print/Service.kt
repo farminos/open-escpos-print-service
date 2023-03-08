@@ -1,8 +1,8 @@
 package com.farminos.print
 
+import android.Manifest
 import android.bluetooth.BluetoothManager
-import android.content.Context
-import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Matrix
@@ -20,6 +20,7 @@ import android.printservice.PrintService
 import android.printservice.PrinterDiscoverySession
 import android.util.Log
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.citizen.jpos.command.CPCLConst
 import com.citizen.jpos.printer.CPCLPrinter
@@ -27,6 +28,8 @@ import com.citizen.port.android.BluetoothPort
 import com.citizen.request.android.RequestHandler
 import com.dantsu.escposprinter.EscPosPrinterCommands
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import java.io.*
 import kotlin.math.ceil
 
@@ -214,43 +217,53 @@ private fun milsToCm(mils: Int): Double {
     return mils / 1000 * 2.54
 }
 
-class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService) :
-    PrinterDiscoverySession() {
+class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService) : PrinterDiscoverySession() {
+    lateinit var pouet: List<PrinterInfo> // TODO: rename
+
     override fun onStartPrinterDiscovery(priorityList: MutableList<PrinterId>) {
-        addPrinters(context.printers)
+        pouet = listPrinters()
+        addPrinters(pouet)
     }
 
+    private fun listPrinters(): List<PrinterInfo> {
+        val bluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)
+            ?: return listOf()
+        val bluetoothAdapter = bluetoothManager.adapter
+        if (ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return listOf()
+        }
+        val settings = runBlocking { context.settingsDataStore.data.first() }
+        val printers = bluetoothAdapter.bondedDevices
+            .filter { it.bluetoothClass.deviceClass == 1664 }  // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
+            .sortedBy { if (it.address == settings.defaultPrinter) 0 else 1 }
+            .mapNotNull {
+                val printerSettings = settings.printersMap[it.address]
+                if (printerSettings == null || !printerSettings.enabled) {
+                    null
+                } else {
+                    PrinterWithSettings(
+                        printer = Printer(address = it.address, name = it.name),
+                        settings = printerSettings,
+                    )
+                }
+            }
+            .map {
+                val id = context.generatePrinterId(it.printer.address)
+                buildPrinter(id, it)
+            }
+        return printers
+    }
     override fun onStopPrinterDiscovery() {}
 
     override fun onValidatePrinters(printerIds: MutableList<PrinterId>) {}
 
+
     override fun onStartPrinterStateTracking(printerId: PrinterId) {
-        // TODO: this is very hardcoded
-        val dpi = 203
-        val width = 5.1
-        val height = 8.0
-        val marginMils = 0
-        context.printers = printers.map {
-            if (it.id == printerId) {
-                PrinterInfo.Builder(it).setCapabilities(
-                    PrinterCapabilitiesInfo.Builder(it.id)
-                        .addMediaSize(
-                            PrintAttributes.MediaSize("${width}x${height}cm", "${width}x${height}cm", cmToMils(width), cmToMils(height)),
-                            true
-                        )
-                        .addResolution(Resolution("${dpi}dpi", "${dpi}dpi", dpi, dpi), true)
-                        .setColorModes(
-                            PrintAttributes.COLOR_MODE_COLOR,
-                            PrintAttributes.COLOR_MODE_COLOR
-                        )
-                        .setMinMargins(Margins(marginMils, marginMils, marginMils, marginMils))
-                        .build()
-                ).build()
-            } else {
-                it
-            }
-        }
-        addPrinters(context.printers)
+        //addPrinters(getPrinters())
     }
 
     override fun onStopPrinterStateTracking(printerId: PrinterId) {}
@@ -272,32 +285,57 @@ private fun copyToTmpFile(cacheDir: File, fd: FileDescriptor): ParcelFileDescrip
     return ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_ONLY)
 }
 
+fun buildPrinter(id: PrinterId, printer: PrinterWithSettings): PrinterInfo {
+    val dpi = printer.settings.dpi
+    val width = printer.settings.width.toDouble()
+    val height = printer.settings.height.toDouble()
+    val marginMils = printer.settings.marginMils
+    return PrinterInfo.Builder(
+        id,
+        printer.printer.name,
+        PrinterInfo.STATUS_IDLE
+    )
+        .setCapabilities(
+            PrinterCapabilitiesInfo.Builder(id)
+                .addMediaSize(
+                    PrintAttributes.MediaSize(
+                        "${width}x${height}cm",
+                        "${width}x${height}cm",
+                        cmToMils(width),
+                        cmToMils(height),
+                    ),
+                    true
+                )
+                .addResolution(
+                    Resolution("${dpi}dpi", "${dpi}dpi", dpi, dpi),
+                    true
+                )
+                .setColorModes(
+                    PrintAttributes.COLOR_MODE_COLOR,
+                    PrintAttributes.COLOR_MODE_COLOR
+                )
+                .setMinMargins(
+                    Margins(marginMils, marginMils, marginMils, marginMils)
+                )
+                .build()
+        ).build()
+}
+
 class FarminOSPrintService : PrintService() {
-    private lateinit var preferences: SharedPreferences
-    lateinit var printers: List<PrinterInfo>
+    private lateinit var session: FarminOSPrinterDiscoverySession
 
     override fun onCreate() {
         super.onCreate()
-
-        preferences = this.getSharedPreferences("FarminOSPrintService", Context.MODE_PRIVATE)
-
-        val preferencesPrinters = preferences.all
-
-        printers = preferencesPrinters.map {
-            PrinterInfo.Builder(
-                this.generatePrinterId(it.key),
-                it.value as String,
-                PrinterInfo.STATUS_IDLE
-            ).build()
-        }
     }
 
+
     override fun onCreatePrinterDiscoverySession(): PrinterDiscoverySession {
-        return FarminOSPrinterDiscoverySession(this)
+        session = FarminOSPrinterDiscoverySession(this)
+        return session
     }
 
     override fun onPrintJobQueued(printJob: PrintJob) {
-        val printer = printers.find { it.id == printJob.info.printerId }
+        val printer = session.pouet.find { it.id == printJob.info.printerId }
         val document = printJob.document.data
 
         if (printer != null && document != null) {

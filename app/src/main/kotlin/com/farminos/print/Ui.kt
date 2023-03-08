@@ -254,7 +254,7 @@ fun PrinterCard(
                     },
                 )
                 LabelledTextField(
-                    label = "Paper width (inches)",
+                    label = "Paper width (cm)",
                     value = settings.width.toString(),
                     transform = {value ->
                         value.toFloatOrNull()
@@ -266,7 +266,7 @@ fun PrinterCard(
                     },
                 )
                 LabelledTextField(
-                    label = "Paper height (inches)",
+                    label = "Paper height (cm)",
                     value = settings.height.toString(),
                     transform = {value ->
                         value.toFloatOrNull()
