@@ -2,6 +2,7 @@ package com.farminos.print
 
 import android.Manifest
 import android.bluetooth.BluetoothManager
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -99,6 +100,40 @@ private fun bitmapSlices(bitmap: Bitmap, step: Int) = sequence<Bitmap> {
     }
 }
 
+fun escPosPrint(
+    context: Context,
+    address: String,
+    width: Double,
+    height: Double,
+    dpi: Int,
+    cut: Boolean,
+    document: ParcelFileDescriptor,
+) {
+    val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
+    val bluetoothAdapter = bluetoothManager.adapter
+    val device = bluetoothAdapter.getRemoteDevice(address)
+    val connection = BluetoothConnection(device)
+    val printerCommands = EscPosPrinterCommands(connection)
+    printerCommands.connect()
+    printerCommands.reset()
+    val pages = pdfToBitmaps(document, dpi, width, height)
+    pages.forEach { page ->
+        bitmapSlices(page, 128).forEach {
+            Thread.sleep(100) // TODO: Needed on MTP-2 printer
+            printerCommands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
+        }
+        if (cut) {
+            // TODO: sleep ?
+            printerCommands.cutPaper()
+        }
+    }
+    document.close()
+    // TODO
+    val speed = 3 // cm/s
+    Thread.sleep((height / speed * 1000).toLong())
+    printerCommands.disconnect()
+}
+
 internal class ESCPOSPrintJobThread(
     private val context: FarminOSPrintService,
     private val printer: PrinterWithSettingsAndInfo,
@@ -115,29 +150,15 @@ internal class ESCPOSPrintJobThread(
         val w = milsToCm(mediaSize.widthMils)
         val h = milsToCm(mediaSize.heightMils)
         val dpi = resolution.horizontalDpi
-        val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
-        val bluetoothAdapter = bluetoothManager.adapter
-        val device = bluetoothAdapter.getRemoteDevice(printer.printer.address)
-        val connection = BluetoothConnection(device)
-        val printerCommands = EscPosPrinterCommands(connection)
-        printerCommands.connect()
-        printerCommands.reset()
-        val pages = pdfToBitmaps(document, dpi, w, h)
-        pages.forEach { page ->
-            bitmapSlices(page, 128).forEach {
-                sleep(100) // TODO: Needed on MTP-2 printer
-                printerCommands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
-            }
-            if (printer.settings.cut) {
-                // TODO: sleep ?
-                printerCommands.cutPaper()
-            }
-        }
-        this.document.close()
-        // TODO
-        val speed = 3 // cm/s
-        sleep((h / speed * 1000).toLong())
-        printerCommands.disconnect()
+        escPosPrint(
+            context = context,
+            address = printer.printer.address,
+            width = w,
+            height = h,
+            dpi = dpi,
+            cut = printer.settings.cut,
+            document = document,
+        )
     }
 }
 
@@ -226,7 +247,7 @@ internal class CITIZENPrintJobThread(
     }
 }
 
-private fun cmToMils(cm: Double): Int {
+fun cmToMils(cm: Double): Int {
     return ceil(cm / 2.54 * 1000).toInt()
 }
 
