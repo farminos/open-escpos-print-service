@@ -31,6 +31,7 @@ import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.io.*
+import java.text.DecimalFormat
 import kotlin.math.ceil
 
 private fun cmToDots(cm: Double, dpi: Int): Int {
@@ -105,11 +106,15 @@ internal class ESCPOSPrintJobThread(
     private val document: ParcelFileDescriptor
 ) : Thread() {
     override fun run() {
-        // TODO: !!
-        val w = milsToCm(info.attributes.mediaSize!!.widthMils)
-        val h = milsToCm(info.attributes.mediaSize!!.heightMils)
-        val dpi = info.attributes.resolution!!.horizontalDpi
-        // TODO: pass the bluetooth device from the print service
+        val mediaSize = info.attributes.mediaSize
+        val resolution = info.attributes.resolution
+        if (mediaSize == null || resolution == null) {
+            // TODO: report error
+            return
+        }
+        val w = milsToCm(mediaSize.widthMils)
+        val h = milsToCm(mediaSize.heightMils)
+        val dpi = resolution.horizontalDpi
         val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
         val bluetoothAdapter = bluetoothManager.adapter
         val device = bluetoothAdapter.getRemoteDevice(printer.id.localId)
@@ -120,6 +125,7 @@ internal class ESCPOSPrintJobThread(
         val pages = pdfToBitmaps(document, dpi, w, h)
         pages.forEach { page ->
             bitmapSlices(page, 128).forEach {
+                sleep(100) // TODO: Needed on MTP-2 printer
                 printerCommands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
             }
             printerCommands.cutPaper()
@@ -135,6 +141,7 @@ internal class ESCPOSPrintJobThread(
 internal class CITIZENPrintJobThread(
     private val context: FarminOSPrintService,
     private val printer: PrinterInfo,
+    private val info: PrintJobInfo,
     private val document: ParcelFileDescriptor
 ) : Thread() {
     private lateinit var bluetoothPort: BluetoothPort
@@ -182,11 +189,18 @@ internal class CITIZENPrintJobThread(
             }
 
             cpclPrinter.setMedia(CPCLConst.CMP_CPCL_LABEL)
-            // TODO: hardcoded sizes
-            val pages = pdfToBitmaps(document, 203, 7.0, 9.0)
+            val mediaSize = info.attributes.mediaSize
+            val resolution = info.attributes.resolution
+            if (mediaSize == null || resolution == null) {
+                clean()
+                return
+            }
+            val w = milsToCm(mediaSize.widthMils)
+            val h = milsToCm(mediaSize.heightMils)
+            val dpi = resolution.horizontalDpi
+            val pages = pdfToBitmaps(document, dpi, w, h)
             pages.forEach {
-                // TODO: labelHeight is hardcoded
-                cpclPrinter.setForm(0, 1, 1, 900, 1)
+                cpclPrinter.setForm(0, 1, 1, (h * 100).toInt(), 1)
                 cpclPrinter.printBitmap(it, 0, 0)
                 cpclPrinter.printForm()
             }
@@ -218,14 +232,17 @@ private fun milsToCm(mils: Int): Double {
 }
 
 class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService) : PrinterDiscoverySession() {
-    lateinit var pouet: List<PrinterInfo> // TODO: rename
+    val printersMap: MutableMap<PrinterId, PrinterWithSettingsAndInfo> = mutableMapOf()
 
     override fun onStartPrinterDiscovery(priorityList: MutableList<PrinterId>) {
-        pouet = listPrinters()
-        addPrinters(pouet)
+        // TODO: observe settings
+        listPrinters().forEach {
+            printersMap[it.info.id] = it
+            addPrinters(listOf(it.info))
+        }
     }
 
-    private fun listPrinters(): List<PrinterInfo> {
+    private fun listPrinters(): List<PrinterWithSettingsAndInfo> {
         val bluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)
             ?: return listOf()
         val bluetoothAdapter = bluetoothManager.adapter
@@ -245,22 +262,19 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
                 if (printerSettings == null || !printerSettings.enabled) {
                     null
                 } else {
-                    PrinterWithSettings(
+                    val id = context.generatePrinterId(it.address)
+                    PrinterWithSettingsAndInfo(
                         printer = Printer(address = it.address, name = it.name),
                         settings = printerSettings,
+                        info = buildPrinterInfo(id, it.name, printerSettings)
                     )
                 }
-            }
-            .map {
-                val id = context.generatePrinterId(it.printer.address)
-                buildPrinter(id, it)
             }
         return printers
     }
     override fun onStopPrinterDiscovery() {}
 
     override fun onValidatePrinters(printerIds: MutableList<PrinterId>) {}
-
 
     override fun onStartPrinterStateTracking(printerId: PrinterId) {
         //addPrinters(getPrinters())
@@ -285,22 +299,22 @@ private fun copyToTmpFile(cacheDir: File, fd: FileDescriptor): ParcelFileDescrip
     return ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_ONLY)
 }
 
-fun buildPrinter(id: PrinterId, printer: PrinterWithSettings): PrinterInfo {
-    val dpi = printer.settings.dpi
-    val width = printer.settings.width.toDouble()
-    val height = printer.settings.height.toDouble()
-    val marginMils = printer.settings.marginMils
-    return PrinterInfo.Builder(
-        id,
-        printer.printer.name,
-        PrinterInfo.STATUS_IDLE
-    )
+data class PrinterWithSettingsAndInfo(val printer: Printer, val settings: PrinterSettings, val info: PrinterInfo)
+
+fun buildPrinterInfo(id: PrinterId, name: String, settings: PrinterSettings): PrinterInfo {
+    val dpi = settings.dpi
+    val width = settings.width.toDouble()
+    val height = settings.height.toDouble()
+    val marginMils = settings.marginMils
+    val df = DecimalFormat("#.#")
+    val mediaSizeLabel = "${df.format(width)}x${df.format(height)}cm"
+    return PrinterInfo.Builder(id, name, PrinterInfo.STATUS_IDLE)
         .setCapabilities(
             PrinterCapabilitiesInfo.Builder(id)
                 .addMediaSize(
                     PrintAttributes.MediaSize(
-                        "${width}x${height}cm",
-                        "${width}x${height}cm",
+                        mediaSizeLabel,
+                        mediaSizeLabel,
                         cmToMils(width),
                         cmToMils(height),
                     ),
@@ -328,22 +342,24 @@ class FarminOSPrintService : PrintService() {
         super.onCreate()
     }
 
-
     override fun onCreatePrinterDiscoverySession(): PrinterDiscoverySession {
         session = FarminOSPrinterDiscoverySession(this)
         return session
     }
 
     override fun onPrintJobQueued(printJob: PrintJob) {
-        val printer = session.pouet.find { it.id == printJob.info.printerId }
+        val printerId = printJob.info.printerId
+        val printer = session.printersMap[printerId]
         val document = printJob.document.data
 
         if (printer != null && document != null) {
             // we copy the document in the main thread, otherwise you get: java.lang.IllegalAccessError
             val copy = copyToTmpFile(this.cacheDir, document.fileDescriptor)
-            // TODO
-            //val thread = CITIZENPrintJobThread(this, printer, ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_WRITE))
-            val thread = ESCPOSPrintJobThread(this, printer, printJob.info, copy)
+            val thread = if (printer.settings.driver == Driver.ESC_POS) {
+                ESCPOSPrintJobThread(this, printer.info, printJob.info, copy)
+            } else {
+                CITIZENPrintJobThread(this, printer.info, printJob.info, copy)
+            }
             printJob.start()
             thread.start()
             thread.join()
