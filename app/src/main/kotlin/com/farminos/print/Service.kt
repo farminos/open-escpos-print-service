@@ -101,7 +101,7 @@ private fun bitmapSlices(bitmap: Bitmap, step: Int) = sequence<Bitmap> {
 
 internal class ESCPOSPrintJobThread(
     private val context: FarminOSPrintService,
-    private val printer: PrinterInfo,
+    private val printer: PrinterWithSettingsAndInfo,
     private val info: PrintJobInfo,
     private val document: ParcelFileDescriptor
 ) : Thread() {
@@ -117,7 +117,7 @@ internal class ESCPOSPrintJobThread(
         val dpi = resolution.horizontalDpi
         val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
         val bluetoothAdapter = bluetoothManager.adapter
-        val device = bluetoothAdapter.getRemoteDevice(printer.id.localId)
+        val device = bluetoothAdapter.getRemoteDevice(printer.printer.address)
         val connection = BluetoothConnection(device)
         val printerCommands = EscPosPrinterCommands(connection)
         printerCommands.connect()
@@ -128,7 +128,10 @@ internal class ESCPOSPrintJobThread(
                 sleep(100) // TODO: Needed on MTP-2 printer
                 printerCommands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
             }
-            printerCommands.cutPaper()
+            if (printer.settings.cut) {
+                // TODO: sleep ?
+                printerCommands.cutPaper()
+            }
         }
         this.document.close()
         // TODO
@@ -140,7 +143,7 @@ internal class ESCPOSPrintJobThread(
 
 internal class CITIZENPrintJobThread(
     private val context: FarminOSPrintService,
-    private val printer: PrinterInfo,
+    private val printer: PrinterWithSettingsAndInfo,
     private val info: PrintJobInfo,
     private val document: ParcelFileDescriptor
 ) : Thread() {
@@ -152,8 +155,8 @@ internal class CITIZENPrintJobThread(
         thread = Thread(RequestHandler())
 
         try {
-            Log.d("CITIZENPrintJobThread", printer.id.localId)
-            bluetoothPort.connect(printer.id.localId)
+            Log.d("CITIZENPrintJobThread", printer.printer.address)
+            bluetoothPort.connect(printer.printer.address)
         } catch (exception: Exception) {
             Log.d("CITIZENPrintJobThread", "bluetooth error")
             ContextCompat.getMainExecutor(context).execute {
@@ -356,9 +359,9 @@ class FarminOSPrintService : PrintService() {
             // we copy the document in the main thread, otherwise you get: java.lang.IllegalAccessError
             val copy = copyToTmpFile(this.cacheDir, document.fileDescriptor)
             val thread = if (printer.settings.driver == Driver.ESC_POS) {
-                ESCPOSPrintJobThread(this, printer.info, printJob.info, copy)
+                ESCPOSPrintJobThread(this, printer, printJob.info, copy)
             } else {
-                CITIZENPrintJobThread(this, printer.info, printJob.info, copy)
+                CITIZENPrintJobThread(this, printer, printJob.info, copy)
             }
             printJob.start()
             thread.start()
