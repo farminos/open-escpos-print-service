@@ -13,6 +13,9 @@ import android.webkit.WebViewClient
 import androidx.annotation.UiThread
 import java.io.File
 
+// TODO: We could probably just screenshot the WebView and skip the pdf generation part
+//  (unless we need to print several pages)
+
 class HtmlToPdfConverter(private val context: Context) {
 
     private var baseUrl: String? = null
@@ -30,6 +33,9 @@ class HtmlToPdfConverter(private val context: Context) {
     fun convert(
         pdfLocation: File,
         htmlString: String,
+        width: Double,
+        height: Double,
+        dpi: Int,
         onPdfGenerationFailed: PdfGenerationFailedCallback? = null,
         onPdfGenerated: PdfGeneratedCallback,
     ) {
@@ -53,7 +59,7 @@ class HtmlToPdfConverter(private val context: Context) {
             val jobName = Math.random().toString()
 
             // generate pdf attributes and properties
-            val attributes = getPrintAttributes()
+            val attributes = getPrintAttributes(width, height, dpi)
 
             // generate print document adapter
             val printAdapter = getPrintAdapter(pdfWebView, jobName)
@@ -104,17 +110,16 @@ class HtmlToPdfConverter(private val context: Context) {
         return pdfWebView.createPrintDocumentAdapter(jobName)
     }
 
-    private fun getPrintAttributes(): PrintAttributes {
-        // TODO: hardcoded size, resolution and margins
+    private fun getPrintAttributes(width: Double, height: Double, dpi: Int): PrintAttributes {
         val size = PrintAttributes.MediaSize(
-            "TODO", // TODO
-            "TODO", // TODO
-            cmToMils(5.1),
-            cmToMils(5.0),
+            "pdf",
+            "pdf",
+            cmToMils(width),
+            cmToMils(height),
         )
         return PrintAttributes.Builder().apply {
             setMediaSize(size)
-            setResolution(Resolution("pdf", Context.PRINT_SERVICE, 203, 203))
+            setResolution(Resolution("pdf", Context.PRINT_SERVICE, dpi, dpi))
             setMinMargins(PrintAttributes.Margins.NO_MARGINS)
         }.build()
     }

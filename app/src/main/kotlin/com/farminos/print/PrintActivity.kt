@@ -22,7 +22,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
 import com.google.protobuf.InvalidProtocolBufferException
-import io.github.mddanishansari.html_to_pdf.HtmlToPdfConvertor
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -33,7 +32,6 @@ import kotlin.coroutines.resume
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
-import kotlin.coroutines.coroutineContext
 
 
 object SettingsSerializer : Serializer<Settings> {
@@ -59,11 +57,13 @@ val Context.settingsDataStore: DataStore<Settings> by dataStore(
 )
 
 data class Printer(val address: String, val name: String)
-data class PrinterWithSettings(val printer: Printer, val settings: PrinterSettings)
 
-suspend fun htmlToPdfCb(
+fun htmlToPdfCb(
     context: Context,
     content: String,
+    width: Double,
+    height: Double,
+    dpi: Int,
     callback: (File) -> Unit,
     errback: (Exception) -> Unit,
 ) {
@@ -73,9 +73,12 @@ suspend fun htmlToPdfCb(
         null,
         context.cacheDir,
     )
-    val result = htmlToPdfConvertor.convert(
+    htmlToPdfConvertor.convert(
         pdfLocation = tmpFile,
         htmlString = content,
+        width,
+        height,
+        dpi,
         onPdfGenerationFailed = { exception ->
             errback(exception)
         },
@@ -88,31 +91,30 @@ suspend fun htmlToPdfCb(
 suspend fun htmlToPdf(
     context: Context,
     content: String,
+    width: Double,
+    height: Double,
+    dpi: Int,
 ): File {
-    println("htmlToPdf      : I'm working in thread ${Thread.currentThread().name}")
     return suspendCoroutine { continuation ->
-        Log.d("WTF", "pdf generation start")
-        println("suspendCoroutine      : I'm working in thread ${Thread.currentThread().name}")
         val htmlToPdfConvertor = HtmlToPdfConverter(context)
         val tmpFile = File.createTempFile(
             System.currentTimeMillis().toString(),
             null,
             context.cacheDir,
         )
-        println("suspendCoroutine2      : I'm working in thread ${Thread.currentThread().name}")
-        val result = htmlToPdfConvertor.convert(
+        htmlToPdfConvertor.convert(
             pdfLocation = tmpFile,
             htmlString = content,
+            width = width,
+            height = height,
+            dpi = dpi,
             onPdfGenerationFailed = { exception ->
-                Log.d("WTF", "pdf generation failed")
                 continuation.resumeWithException(exception)
             },
             onPdfGenerated = { pdfFile ->
-                Log.d("WTF", "pdf generation done")
                 continuation.resume(pdfFile)
             }
         )
-        println("suspendCoroutine after result  : I'm working in thread ${Thread.currentThread().name} $result")
     }
 }
 
@@ -190,11 +192,11 @@ class PrintActivity : ComponentActivity() {
         )
 
         if (intent.action.equals(Intent.ACTION_VIEW)) {
+            // TODO: print more than one document
             val content : String? = intent.getStringExtra("content")
             if (content == null) {
                 // TODO: toast
             } else {
-                //Log.d("WTF", "else")
                 //val htmlToPdfConvertor = HtmlToPdfConverter(this)
                 //val tmpFile = File.createTempFile(
                 //    System.currentTimeMillis().toString(),
@@ -205,20 +207,14 @@ class PrintActivity : ComponentActivity() {
                 //    pdfLocation = tmpFile,
                 //    htmlString = content,
                 //    onPdfGenerationFailed = { exception ->
-                //        Log.d("WTF", "pdf generation failed")
                 //    },
                 //    onPdfGenerated = { pdfFile ->
-                //        Log.d("WTF", "pdf generation done")
                 //    }
                 //)
                 runBlocking {
-                    Log.d("WTF", "runBlocking")
-                    Log.d("WTF", "launch")
-                    println("runBlocking      : I'm working in thread ${Thread.currentThread().name}")
                     printHtml(content)
                 }
             }
-            Log.d("WTF", "calling finish")
             finish()
             return
         }
@@ -230,8 +226,6 @@ class PrintActivity : ComponentActivity() {
 
     @UiThread
     suspend fun printHtml(content: String) {
-        Log.d("WTF", "printHtml")
-        println("printHtml      : I'm working in thread ${Thread.currentThread().name}")
         val settings = settingsDataStore.data.first()
         val defaultPrinter = settings.defaultPrinter
         val printerSettings = settings.printersMap[defaultPrinter]
@@ -239,28 +233,32 @@ class PrintActivity : ComponentActivity() {
             // TODO: toast error
             return
         }
-        Log.d("WTF", "printHtml has settings")
-        val htmlToPdfConvertor = HtmlToPdfConverter(this)
-        Log.d("WTF", "printHtml has converter")
-        val tmpFile = File.createTempFile(
-            System.currentTimeMillis().toString(),
-            null,
-            cacheDir,
-        )
-        Log.d("WTF", "printHtml has file")
+        // TODO: using the suspendCoroutine version of this never renders the WebView so we use the callback version
+        val width = printerSettings.width.toDouble()
+        val height = printerSettings.height.toDouble()
+        val dpi = printerSettings.dpi
+        val cut = printerSettings.cut
+        val driver = printerSettings.driver
         htmlToPdfCb(
             this,
             content,
+            width,
+            height,
+            dpi,
             {
-                escPosPrint(
-                    context = this,
-                    address = defaultPrinter,
-                    width = printerSettings.width.toDouble(),
-                    height = printerSettings.height.toDouble(),
-                    dpi = printerSettings.dpi,
-                    cut = printerSettings.cut,
-                    document = ParcelFileDescriptor.open(it, MODE_READ_ONLY),
-                )
+                if (driver == Driver.ESC_POS) {
+                    escPosPrint(
+                        context = this,
+                        address = defaultPrinter,
+                        width = width,
+                        height = height,
+                        dpi = dpi,
+                        cut = cut,
+                        document = ParcelFileDescriptor.open(it, MODE_READ_ONLY),
+                    )
+                } else {
+                    // TODO
+                }
             },
             {
                 Log.d("WTF", "boom $it")

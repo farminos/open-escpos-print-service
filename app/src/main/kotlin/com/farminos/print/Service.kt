@@ -19,7 +19,6 @@ import android.print.PrinterInfo
 import android.printservice.PrintJob
 import android.printservice.PrintService
 import android.printservice.PrinterDiscoverySession
-import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -100,6 +99,86 @@ private fun bitmapSlices(bitmap: Bitmap, step: Int) = sequence<Bitmap> {
     }
 }
 
+internal class PrintJobThread(
+    private val context: FarminOSPrintService,
+    private val printer: PrinterWithSettingsAndInfo,
+    private val info: PrintJobInfo,
+    private val document: ParcelFileDescriptor
+) : Thread() {
+    override fun run() {
+        // TODO: maybe this does not need to be a thread
+        val mediaSize = info.attributes.mediaSize
+        val resolution = info.attributes.resolution
+        if (mediaSize == null || resolution == null) {
+            // TODO: handle this gracefully
+            throw java.lang.Exception("No media size or resolution in print job info")
+        }
+        val printFn = when (printer.settings.driver) {
+            Driver.ESC_POS -> ::escPosPrint
+            Driver.CPCL -> ::cpclPrint
+            // TODO: handle this gracefully
+            Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
+        }
+        try {
+            printFn(
+                context,
+                printer.printer.address,
+                milsToCm(mediaSize.widthMils),
+                milsToCm(mediaSize.heightMils),
+                resolution.horizontalDpi,
+                printer.settings.cut,
+                document,
+            )
+        } catch (exception: Exception) {
+            ContextCompat.getMainExecutor(context).execute {
+                Toast.makeText(context, exception.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}
+
+fun cpclPrint(
+    context: Context,
+    address: String,
+    width: Double,
+    height: Double,
+    dpi: Int,
+    cut: Boolean,
+    document: ParcelFileDescriptor,
+) {
+    // TODO: quantity
+    val bluetoothPort = BluetoothPort.getInstance()
+    val thread = Thread(RequestHandler())
+    thread.start()
+    try {
+        bluetoothPort.connect(address)
+        val cpclPrinter = CPCLPrinter()
+        val checkStatus = cpclPrinter.printerCheck()
+        if (checkStatus != CPCLConst.CMP_SUCCESS) {
+            throw Exception("Printer check failed")
+        }
+        val status = cpclPrinter.status()
+        if (status != CPCLConst.CMP_SUCCESS) {
+            throw Exception("Printer status failed")
+        }
+        cpclPrinter.setMedia(CPCLConst.CMP_CPCL_LABEL)
+        val pages = pdfToBitmaps(document, dpi, width, height)
+        pages.forEach {
+            cpclPrinter.setForm(0, dpi, dpi, (height * 100).toInt(), 1)
+            cpclPrinter.printBitmap(it, 0, 0)
+            cpclPrinter.printForm()
+        }
+    } finally {
+        if (bluetoothPort.isConnected) {
+            bluetoothPort.disconnect()
+        }
+        document.close()
+        if (thread.isAlive) {
+            thread.interrupt()
+        }
+    }
+}
+
 fun escPosPrint(
     context: Context,
     address: String,
@@ -109,6 +188,8 @@ fun escPosPrint(
     cut: Boolean,
     document: ParcelFileDescriptor,
 ) {
+    // TODO: On receipt printers: truncate each page once only white or transparent pixels remain.
+    // TODO: !!
     val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
     val bluetoothAdapter = bluetoothManager.adapter
     val device = bluetoothAdapter.getRemoteDevice(address)
@@ -134,118 +215,6 @@ fun escPosPrint(
     printerCommands.disconnect()
 }
 
-internal class ESCPOSPrintJobThread(
-    private val context: FarminOSPrintService,
-    private val printer: PrinterWithSettingsAndInfo,
-    private val info: PrintJobInfo,
-    private val document: ParcelFileDescriptor
-) : Thread() {
-    override fun run() {
-        val mediaSize = info.attributes.mediaSize
-        val resolution = info.attributes.resolution
-        if (mediaSize == null || resolution == null) {
-            // TODO: report error
-            return
-        }
-        val w = milsToCm(mediaSize.widthMils)
-        val h = milsToCm(mediaSize.heightMils)
-        val dpi = resolution.horizontalDpi
-        escPosPrint(
-            context = context,
-            address = printer.printer.address,
-            width = w,
-            height = h,
-            dpi = dpi,
-            cut = printer.settings.cut,
-            document = document,
-        )
-    }
-}
-
-internal class CITIZENPrintJobThread(
-    private val context: FarminOSPrintService,
-    private val printer: PrinterWithSettingsAndInfo,
-    private val info: PrintJobInfo,
-    private val document: ParcelFileDescriptor
-) : Thread() {
-    private lateinit var bluetoothPort: BluetoothPort
-    private lateinit var thread: Thread
-
-    override fun run() {
-        bluetoothPort = BluetoothPort.getInstance()
-        thread = Thread(RequestHandler())
-
-        try {
-            Log.d("CITIZENPrintJobThread", printer.printer.address)
-            bluetoothPort.connect(printer.printer.address)
-        } catch (exception: Exception) {
-            Log.d("CITIZENPrintJobThread", "bluetooth error")
-            ContextCompat.getMainExecutor(context).execute {
-                Toast.makeText(context, "bluetooth error.", Toast.LENGTH_SHORT).show()
-            }
-            clean()
-            return
-        }
-
-        thread.start()
-
-        try {
-            val cpclPrinter = CPCLPrinter()
-
-            var status: Int = cpclPrinter.printerCheck()
-            if (status != CPCLConst.CMP_SUCCESS) {
-                Log.d("CITIZENPrintJobThread", "printer check failed.")
-                ContextCompat.getMainExecutor(context).execute {
-                    Toast.makeText(context, "printer check failed.", Toast.LENGTH_SHORT).show()
-                }
-                clean()
-                return
-            }
-
-            status = cpclPrinter.status()
-            if (status != CPCLConst.CMP_SUCCESS) {
-                Log.d("CITIZENPrintJobThread", "printer status failed.")
-                ContextCompat.getMainExecutor(context).execute {
-                    Toast.makeText(context, "printer status failed.", Toast.LENGTH_SHORT).show()
-                }
-                clean()
-                return
-            }
-
-            cpclPrinter.setMedia(CPCLConst.CMP_CPCL_LABEL)
-            val mediaSize = info.attributes.mediaSize
-            val resolution = info.attributes.resolution
-            if (mediaSize == null || resolution == null) {
-                clean()
-                return
-            }
-            val w = milsToCm(mediaSize.widthMils)
-            val h = milsToCm(mediaSize.heightMils)
-            val dpi = resolution.horizontalDpi
-            val pages = pdfToBitmaps(document, dpi, w, h)
-            pages.forEach {
-                cpclPrinter.setForm(0, 1, 1, (h * 100).toInt(), 1)
-                cpclPrinter.printBitmap(it, 0, 0)
-                cpclPrinter.printForm()
-            }
-
-        } catch (exception: Exception) {
-            Log.d("CITIZENPrintJobThread", "error.", exception)
-            clean()
-        }
-//        clean()
-    }
-
-    private fun clean() {
-        if (this.bluetoothPort.isConnected) {
-            this.bluetoothPort.disconnect()
-        }
-        this.document.close()
-        if (thread.isAlive) {
-            thread.interrupt()
-        }
-    }
-}
 
 fun cmToMils(cm: Double): Int {
     return ceil(cm / 2.54 * 1000).toInt()
@@ -259,7 +228,7 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
     val printersMap: MutableMap<PrinterId, PrinterWithSettingsAndInfo> = mutableMapOf()
 
     override fun onStartPrinterDiscovery(priorityList: MutableList<PrinterId>) {
-        // TODO: observe settings
+        // TODO: observe settings, add / remove / update printers
         listPrinters().forEach {
             printersMap[it.info.id] = it
             addPrinters(listOf(it.info))
@@ -379,11 +348,7 @@ class FarminOSPrintService : PrintService() {
         if (printer != null && document != null) {
             // we copy the document in the main thread, otherwise you get: java.lang.IllegalAccessError
             val copy = copyToTmpFile(this.cacheDir, document.fileDescriptor)
-            val thread = if (printer.settings.driver == Driver.ESC_POS) {
-                ESCPOSPrintJobThread(this, printer, printJob.info, copy)
-            } else {
-                CITIZENPrintJobThread(this, printer, printJob.info, copy)
-            }
+            val thread = PrintJobThread(this, printer, printJob.info, copy)
             printJob.start()
             thread.start()
             thread.join()
