@@ -246,19 +246,21 @@ class PrintActivity : ComponentActivity() {
             height,
             dpi,
             {
-                if (driver == Driver.ESC_POS) {
-                    escPosPrint(
-                        context = this,
-                        address = defaultPrinter,
-                        width = width,
-                        height = height,
-                        dpi = dpi,
-                        cut = cut,
-                        document = ParcelFileDescriptor.open(it, MODE_READ_ONLY),
-                    )
-                } else {
-                    // TODO
+                val printFn = when(driver) {
+                    Driver.ESC_POS -> ::escPosPrint
+                    Driver.CPCL -> ::cpclPrint
+                    // TODO: handle this gracefully, factorize with print service
+                    Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
                 }
+                printFn(
+                    this,
+                    defaultPrinter,
+                    width,
+                    height,
+                    dpi,
+                    cut,
+                    ParcelFileDescriptor.open(it, MODE_READ_ONLY),
+                )
             },
             {
                 Log.d("WTF", "boom $it")
