@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.os.ParcelFileDescriptor.MODE_READ_ONLY
+import android.util.Base64
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -26,12 +27,12 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import kotlin.coroutines.suspendCoroutine
-import kotlin.coroutines.resumeWithException
+import org.json.JSONArray
+import java.io.*
+import java.util.zip.GZIPInputStream
 import kotlin.coroutines.resume
-import java.io.File
-import java.io.InputStream
-import java.io.OutputStream
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 
 
 object SettingsSerializer : Serializer<Settings> {
@@ -87,6 +88,23 @@ fun htmlToPdfCb(
         }
     )
 }
+
+@Throws(IOException::class)
+fun decompress(compressed: ByteArray?): String? {
+    val bufferSize = 32
+    val inputStream = ByteArrayInputStream(compressed)
+    val gis = GZIPInputStream(inputStream, bufferSize)
+    val builder = StringBuilder()
+    val data = ByteArray(bufferSize)
+    var bytesRead: Int
+    while (gis.read(data).also { bytesRead = it } != -1) {
+        builder.append(String(data, 0, bytesRead))
+    }
+    gis.close()
+    inputStream.close()
+    return builder.toString()
+}
+
 @UiThread
 suspend fun htmlToPdf(
     context: Context,
@@ -127,7 +145,7 @@ class PrintActivity : ComponentActivity() {
         updatePrintersList()
     }
     private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
+        ActivityResultContracts.RequestMultiplePermissions()
     ) {
         updatePrintersList()
     }
@@ -197,6 +215,8 @@ class PrintActivity : ComponentActivity() {
             if (content == null) {
                 // TODO: toast
             } else {
+                val pages = JSONArray(decompress(Base64.decode(content, Base64.DEFAULT)))
+                val page = pages.getString(0)
                 //val htmlToPdfConvertor = HtmlToPdfConverter(this)
                 //val tmpFile = File.createTempFile(
                 //    System.currentTimeMillis().toString(),
@@ -212,7 +232,7 @@ class PrintActivity : ComponentActivity() {
                 //    }
                 //)
                 runBlocking {
-                    printHtml(content)
+                    printHtml(page)
                 }
             }
             finish()
@@ -275,7 +295,9 @@ class PrintActivity : ComponentActivity() {
 
     fun requestBluetoothPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            requestPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            requestPermissionLauncher.launch(
+                arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN)
+            )
         }
     }
 
