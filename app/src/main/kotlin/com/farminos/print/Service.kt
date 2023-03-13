@@ -26,11 +26,9 @@ import com.citizen.port.android.BluetoothPort
 import com.citizen.request.android.RequestHandler
 import com.dantsu.escposprinter.EscPosPrinterCommands
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import java.io.*
 import java.text.DecimalFormat
 import kotlin.math.ceil
@@ -189,7 +187,7 @@ private fun milsToCm(mils: Int): Double {
 
 class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService) : PrinterDiscoverySession() {
     private val scope = CoroutineScope(Dispatchers.Main)
-    val printersMap: MutableMap<PrinterId, PrinterWithSettingsAndInfo> = mutableMapOf()
+    private var job: Job? = null
 
     private suspend fun settingsObserver() {
         context.settingsDataStore.data.map { settings ->
@@ -199,20 +197,20 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
             // remove no longer present printers
             oldIds.forEach {
                 if (!newPrinterIds.contains(it)) {
-                    printersMap.remove(it)
+                    context.printersMap.remove(it)
                     removePrinters(listOf(it))
                 }
             }
             // add or update printers
             newPrinters.forEach {
-                printersMap[it.info.id] = it
+                context.printersMap[it.info.id] = it
                 addPrinters(listOf(it.info))
             }
         }.collect()
     }
 
     override fun onStartPrinterDiscovery(priorityList: MutableList<PrinterId>) {
-        scope.launch {
+        job = scope.launch {
             settingsObserver()
         }
     }
@@ -246,13 +244,13 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
             }
         return printers
     }
-    override fun onStopPrinterDiscovery() {}
+    override fun onStopPrinterDiscovery() {
+        job?.cancel("Printer discovery stopped")
+    }
 
     override fun onValidatePrinters(printerIds: MutableList<PrinterId>) {}
 
-    override fun onStartPrinterStateTracking(printerId: PrinterId) {
-        //addPrinters(getPrinters())
-    }
+    override fun onStartPrinterStateTracking(printerId: PrinterId) {}
 
     override fun onStopPrinterStateTracking(printerId: PrinterId) {}
 
@@ -310,6 +308,7 @@ fun buildPrinterInfo(id: PrinterId, name: String, settings: PrinterSettings): Pr
 }
 
 class FarminOSPrintService : PrintService() {
+    val printersMap: MutableMap<PrinterId, PrinterWithSettingsAndInfo> = mutableMapOf()
     private lateinit var session: FarminOSPrinterDiscoverySession
 
     override fun onCreate() {
@@ -334,7 +333,7 @@ class FarminOSPrintService : PrintService() {
 
     private fun printDocument(printJob: PrintJob) {
         val printerId = printJob.info.printerId
-        val printer = session.printersMap[printerId]
+        val printer = printersMap[printerId]
         val document = printJob.document.data
         if (printer == null) {
             throw java.lang.Exception("No printer found")
