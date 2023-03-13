@@ -18,7 +18,6 @@ import android.print.PrinterInfo
 import android.printservice.PrintJob
 import android.printservice.PrintService
 import android.printservice.PrinterDiscoverySession
-import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.citizen.jpos.command.CPCLConst
@@ -27,8 +26,11 @@ import com.citizen.port.android.BluetoothPort
 import com.citizen.request.android.RequestHandler
 import com.dantsu.escposprinter.EscPosPrinterCommands
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import java.io.*
 import java.text.DecimalFormat
 import kotlin.math.ceil
@@ -186,17 +188,36 @@ private fun milsToCm(mils: Int): Double {
 }
 
 class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService) : PrinterDiscoverySession() {
+    private val scope = CoroutineScope(Dispatchers.Main)
     val printersMap: MutableMap<PrinterId, PrinterWithSettingsAndInfo> = mutableMapOf()
 
+    private suspend fun settingsObserver() {
+        context.settingsDataStore.data.map { settings ->
+            val oldIds = printers.map { it.id }
+            val newPrinters = listPrinters(settings)
+            val newPrinterIds = newPrinters.map { it.info.id }
+            // remove no longer present printers
+            oldIds.forEach {
+                if (!newPrinterIds.contains(it)) {
+                    printersMap.remove(it)
+                    removePrinters(listOf(it))
+                }
+            }
+            // add or update printers
+            newPrinters.forEach {
+                printersMap[it.info.id] = it
+                addPrinters(listOf(it.info))
+            }
+        }.collect()
+    }
+
     override fun onStartPrinterDiscovery(priorityList: MutableList<PrinterId>) {
-        // TODO: observe settings, add / remove / update printers
-        listPrinters().forEach {
-            printersMap[it.info.id] = it
-            addPrinters(listOf(it.info))
+        scope.launch {
+            settingsObserver()
         }
     }
 
-    private fun listPrinters(): List<PrinterWithSettingsAndInfo> {
+    private fun listPrinters(settings: Settings): List<PrinterWithSettingsAndInfo> {
         val bluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)
             ?: return listOf()
         val bluetoothAdapter = bluetoothManager.adapter
@@ -207,7 +228,6 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
         ) {
             return listOf()
         }
-        val settings = runBlocking { context.settingsDataStore.data.first() }
         val printers = bluetoothAdapter.bondedDevices
             .filter { it.bluetoothClass.deviceClass == 1664 }  // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
             .sortedBy { if (it.address == settings.defaultPrinter) 0 else 1 }
@@ -309,10 +329,6 @@ class FarminOSPrintService : PrintService() {
             printJob.complete()
         } catch (exception: Exception) {
             printJob.fail(exception.message)
-            // TODO: toast needed ?
-            ContextCompat.getMainExecutor(this).execute {
-                Toast.makeText(this, exception.message, Toast.LENGTH_SHORT).show()
-            }
         }
     }
 
@@ -350,6 +366,7 @@ class FarminOSPrintService : PrintService() {
     }
 
     override fun onRequestCancelPrintJob(printJob: PrintJob) {
+        // TODO: remove from queue or cancel if running
         printJob.cancel()
     }
 }
