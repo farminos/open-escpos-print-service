@@ -109,10 +109,10 @@ fun cpclPrint(
 ) {
     // TODO: quantity
     val bluetoothPort = BluetoothPort.getInstance()
-    val thread = Thread(RequestHandler())
-    thread.start()
     try {
         bluetoothPort.connect(address)
+        val thread = Thread(RequestHandler())
+        thread.start()
         val cpclPrinter = CPCLPrinter()
         val checkStatus = cpclPrinter.printerCheck()
         if (checkStatus != CPCLConst.CMP_SUCCESS) {
