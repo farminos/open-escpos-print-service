@@ -131,13 +131,13 @@ fun cpclPrint(
             cpclPrinter.printForm()
         }
     } finally {
+        if (thread?.isAlive == true) {
+            thread.interrupt()
+        }
         if (bluetoothPort.isConnected) {
             bluetoothPort.disconnect()
         }
         document.close()
-        if (thread?.isAlive == true) {
-            thread.interrupt()
-        }
     }
 }
 
