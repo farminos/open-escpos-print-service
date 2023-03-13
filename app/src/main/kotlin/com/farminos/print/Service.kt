@@ -109,9 +109,10 @@ fun cpclPrint(
 ) {
     // TODO: quantity
     val bluetoothPort = BluetoothPort.getInstance()
+    var thread: Thread? = null
     try {
         bluetoothPort.connect(address)
-        val thread = Thread(RequestHandler())
+        thread = Thread(RequestHandler())
         thread.start()
         val cpclPrinter = CPCLPrinter()
         val checkStatus = cpclPrinter.printerCheck()
@@ -134,7 +135,7 @@ fun cpclPrint(
             bluetoothPort.disconnect()
         }
         document.close()
-        if (thread.isAlive) {
+        if (thread?.isAlive == true) {
             thread.interrupt()
         }
     }
