@@ -12,7 +12,6 @@ import android.os.ParcelFileDescriptor
 import android.print.PrintAttributes
 import android.print.PrintAttributes.Margins
 import android.print.PrintAttributes.Resolution
-import android.print.PrintJobInfo
 import android.print.PrinterCapabilitiesInfo
 import android.print.PrinterId
 import android.print.PrinterInfo
@@ -96,44 +95,6 @@ private fun bitmapSlices(bitmap: Bitmap, step: Int) = sequence<Bitmap> {
             if (y + step >= height) height - y else step
         )
         yield(slice)
-    }
-}
-
-internal class PrintJobThread(
-    private val context: FarminOSPrintService,
-    private val printer: PrinterWithSettingsAndInfo,
-    private val info: PrintJobInfo,
-    private val document: ParcelFileDescriptor
-) : Thread() {
-    override fun run() {
-        // TODO: maybe this does not need to be a thread
-        val mediaSize = info.attributes.mediaSize
-        val resolution = info.attributes.resolution
-        if (mediaSize == null || resolution == null) {
-            // TODO: handle this gracefully
-            throw java.lang.Exception("No media size or resolution in print job info")
-        }
-        val printFn = when (printer.settings.driver) {
-            Driver.ESC_POS -> ::escPosPrint
-            Driver.CPCL -> ::cpclPrint
-            // TODO: handle this gracefully
-            Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
-        }
-        try {
-            printFn(
-                context,
-                printer.printer.address,
-                milsToCm(mediaSize.widthMils),
-                milsToCm(mediaSize.heightMils),
-                resolution.horizontalDpi,
-                printer.settings.cut,
-                document,
-            )
-        } catch (exception: Exception) {
-            ContextCompat.getMainExecutor(context).execute {
-                Toast.makeText(context, exception.message, Toast.LENGTH_SHORT).show()
-            }
-        }
     }
 }
 
@@ -341,22 +302,51 @@ class FarminOSPrintService : PrintService() {
     }
 
     override fun onPrintJobQueued(printJob: PrintJob) {
+        // TODO: actual queue
+        printJob.start()
+        try{
+            printDocument(printJob)
+            printJob.complete()
+        } catch (exception: Exception) {
+            printJob.fail(exception.message)
+            // TODO: toast needed ?
+            ContextCompat.getMainExecutor(this).execute {
+                Toast.makeText(this, exception.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun printDocument(printJob: PrintJob) {
         val printerId = printJob.info.printerId
         val printer = session.printersMap[printerId]
         val document = printJob.document.data
-
-        if (printer != null && document != null) {
-            // we copy the document in the main thread, otherwise you get: java.lang.IllegalAccessError
-            val copy = copyToTmpFile(this.cacheDir, document.fileDescriptor)
-            val thread = PrintJobThread(this, printer, printJob.info, copy)
-            printJob.start()
-            thread.start()
-            thread.join()
-            printJob.complete()
-        } else {
-            printJob.cancel()
+        if (printer == null) {
+            throw java.lang.Exception("No printer found")
         }
-
+        if (document == null) {
+            throw java.lang.Exception("No document found")
+        }
+        // we copy the document in the main thread, otherwise you get: java.lang.IllegalAccessError
+        val copy = copyToTmpFile(this.cacheDir, document.fileDescriptor)
+        val mediaSize = printJob.info.attributes.mediaSize
+        val resolution = printJob.info.attributes.resolution
+        if (mediaSize == null || resolution == null) {
+            throw java.lang.Exception("No media size or resolution in print job info")
+        }
+        val printFn = when (printer.settings.driver) {
+            Driver.ESC_POS -> ::escPosPrint
+            Driver.CPCL -> ::cpclPrint
+            Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
+        }
+        printFn(
+            this,
+            printer.printer.address,
+            milsToCm(mediaSize.widthMils),
+            milsToCm(mediaSize.heightMils),
+            resolution.horizontalDpi,
+            printer.settings.cut,
+            copy,
+        )
     }
 
     override fun onRequestCancelPrintJob(printJob: PrintJob) {
