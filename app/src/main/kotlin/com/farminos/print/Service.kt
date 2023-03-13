@@ -232,7 +232,7 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
             .sortedBy { if (it.address == settings.defaultPrinter) 0 else 1 }
             .mapNotNull {
                 val printerSettings = settings.printersMap[it.address]
-                if (printerSettings == null || !printerSettings.enabled) {
+                if (printerSettings == null || !printerSettings.enabled || printerSettings.dpi <= 0) {
                     null
                 } else {
                     val id = context.generatePrinterId(it.address)
