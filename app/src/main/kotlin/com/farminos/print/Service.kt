@@ -98,86 +98,6 @@ private fun bitmapSlices(bitmap: Bitmap, step: Int) = sequence<Bitmap> {
     }
 }
 
-fun cpclPrint(
-    context: Context,
-    address: String,
-    width: Double,
-    height: Double,
-    dpi: Int,
-    cut: Boolean,
-    document: ParcelFileDescriptor,
-) {
-    // TODO: quantity
-    val bluetoothPort = BluetoothPort.getInstance()
-    var thread: Thread? = null
-    try {
-        bluetoothPort.connect(address)
-        thread = Thread(RequestHandler())
-        thread.start()
-        val cpclPrinter = CPCLPrinter()
-        val checkStatus = cpclPrinter.printerCheck()
-        if (checkStatus != CPCLConst.CMP_SUCCESS) {
-            throw Exception("Printer check failed")
-        }
-        val status = cpclPrinter.status()
-        if (status != CPCLConst.CMP_SUCCESS) {
-            throw Exception("Printer status failed")
-        }
-        cpclPrinter.setMedia(CPCLConst.CMP_CPCL_LABEL)
-        val pages = pdfToBitmaps(document, dpi, width, height)
-        pages.forEach {
-            cpclPrinter.setForm(0, dpi, dpi, (height * 100).toInt(), 1)
-            cpclPrinter.printBitmap(it, 0, 0)
-            cpclPrinter.printForm()
-        }
-    } finally {
-        if (thread?.isAlive == true) {
-            thread.interrupt()
-        }
-        if (bluetoothPort.isConnected) {
-            bluetoothPort.disconnect()
-        }
-        document.close()
-    }
-}
-
-fun escPosPrint(
-    context: Context,
-    address: String,
-    width: Double,
-    height: Double,
-    dpi: Int,
-    cut: Boolean,
-    document: ParcelFileDescriptor,
-) {
-    // TODO: On receipt printers: truncate each page once only white or transparent pixels remain.
-    // TODO: !!
-    val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
-    val bluetoothAdapter = bluetoothManager.adapter
-    val device = bluetoothAdapter.getRemoteDevice(address)
-    val connection = BluetoothConnection(device)
-    val printerCommands = EscPosPrinterCommands(connection)
-    printerCommands.connect()
-    printerCommands.reset()
-    val pages = pdfToBitmaps(document, dpi, width, height)
-    pages.forEach { page ->
-        bitmapSlices(page, 128).forEach {
-            Thread.sleep(100) // TODO: Needed on MTP-2 printer
-            printerCommands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
-        }
-        if (cut) {
-            // TODO: sleep ?
-            printerCommands.cutPaper()
-        }
-    }
-    document.close()
-    // TODO
-    val speed = 3 // cm/s
-    Thread.sleep((height / speed * 1000).toLong())
-    printerCommands.disconnect()
-}
-
-
 fun cmToMils(cm: Double): Int {
     return ceil(cm / 2.54 * 1000).toInt()
 }
@@ -349,24 +269,132 @@ class FarminOSPrintService : PrintService() {
         if (mediaSize == null || resolution == null) {
             throw java.lang.Exception("No media size or resolution in print job info")
         }
-        val printFn = when (printer.settings.driver) {
-            Driver.ESC_POS -> ::escPosPrint
-            Driver.CPCL -> ::cpclPrint
+        val driverClass = when (printer.settings.driver) {
+            Driver.ESC_POS -> ::EscPosDriver
+            Driver.CPCL -> ::CpclDriver
             Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
         }
-        printFn(
+        val instance = driverClass(
             this,
             printer.printer.address,
             milsToCm(mediaSize.widthMils),
             milsToCm(mediaSize.heightMils),
             resolution.horizontalDpi,
             printer.settings.cut,
-            copy,
         )
+        instance.printDocument(copy)
+        // TODO: move this somewhere else
+        instance.disconnect()
     }
 
     override fun onRequestCancelPrintJob(printJob: PrintJob) {
         // TODO: remove from queue or cancel if running
         printJob.cancel()
+    }
+}
+
+// TODO: make PrinterDriver Closeable
+abstract class PrinterDriver(
+    context: Context,
+    address: String,
+    protected val width: Double,
+    protected val height: Double,
+    protected val dpi: Int,
+    protected val cut: Boolean,
+) {
+    abstract fun printBitmap(bitmap: Bitmap)
+
+    abstract fun disconnect()
+
+    fun printDocument(document: ParcelFileDescriptor) {
+        // TODO: On receipt printers: truncate each page once only white or transparent pixels remain.
+        // TODO: !!
+        pdfToBitmaps(document, dpi, width, height).forEach { page ->
+            printBitmap(page)
+        }
+        document.close()
+        // TODO
+        val speed = 3 // cm/s
+        Thread.sleep((height / speed * 1000).toLong())
+    }
+}
+
+class EscPosDriver(
+    context: Context,
+    address: String,
+    width: Double,
+    height: Double,
+    dpi: Int,
+    cut: Boolean,
+): PrinterDriver(context, address, width, height, dpi, cut) {
+    private val commands: EscPosPrinterCommands
+    init {
+        val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
+        val bluetoothAdapter = bluetoothManager.adapter
+        val device = bluetoothAdapter.getRemoteDevice(address)
+        val connection = BluetoothConnection(device)
+        commands = EscPosPrinterCommands(connection)
+        commands.connect()
+        commands.reset()
+    }
+
+    override fun printBitmap(bitmap: Bitmap) {
+        bitmapSlices(bitmap, 128).forEach {
+            Thread.sleep(100) // TODO: Needed on MTP-2 printer
+            commands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
+        }
+        if (cut) {
+            // TODO: sleep ?
+            commands.cutPaper()
+        }
+    }
+
+    override fun disconnect() {
+        commands.disconnect()
+    }
+}
+
+class CpclDriver(
+    context: Context,
+    address: String,
+    width: Double,
+    height: Double,
+    dpi: Int,
+    cut: Boolean,
+): PrinterDriver(context, address, width, height, dpi, cut) {
+    private val bluetoothPort: BluetoothPort = BluetoothPort.getInstance()
+    private val requestHandlerThread: Thread
+    private val cpclPrinter: CPCLPrinter
+
+    init {
+        bluetoothPort.connect(address)
+        // TODO: wait until it is actually connected
+        requestHandlerThread = Thread(RequestHandler())
+        requestHandlerThread.start()
+        cpclPrinter = CPCLPrinter()
+        val checkStatus = cpclPrinter.printerCheck()
+        if (checkStatus != CPCLConst.CMP_SUCCESS) {
+            throw Exception("Printer check failed")
+        }
+        val status = cpclPrinter.status()
+        if (status != CPCLConst.CMP_SUCCESS) {
+            throw Exception("Printer status failed")
+        }
+        cpclPrinter.setMedia(CPCLConst.CMP_CPCL_LABEL)
+    }
+
+    override fun printBitmap(bitmap: Bitmap) {
+        cpclPrinter.setForm(0, dpi, dpi, (height * 100).toInt(), 1)
+        cpclPrinter.printBitmap(bitmap, 0, 0)
+        cpclPrinter.printForm()
+    }
+
+    override fun disconnect() {
+        if (requestHandlerThread?.isAlive == true) {
+            requestHandlerThread.interrupt()
+        }
+        if (bluetoothPort.isConnected) {
+            bluetoothPort.disconnect()
+        }
     }
 }

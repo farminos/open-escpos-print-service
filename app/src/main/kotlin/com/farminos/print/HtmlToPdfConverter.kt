@@ -1,20 +1,28 @@
 package com.farminos.print
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.os.Build
-import android.print.PdfPrinter
-import android.print.PrintAttributes
-import android.print.PrintAttributes.Resolution
-import android.print.PrintDocumentAdapter
 import android.util.Log
-import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.annotation.UiThread
-import java.io.File
 
-// TODO: We could probably just screenshot the WebView and skip the pdf generation part
-//  (unless we need to print several pages)
+fun captureWebView(webView: WebView, widthPixels: Int, heightPixels: Int): Bitmap {
+    val bitmap = Bitmap.createBitmap(
+        widthPixels,
+        heightPixels,
+        Bitmap.Config.ARGB_8888,
+    )
+    val canvas = Canvas(bitmap)
+    webView.draw(canvas)
+    return bitmap
+}
+
+private fun cmToPixels(cm: Double, dpi: Int): Int {
+    return (cm / 2.54 * dpi).toInt()
+}
 
 class HtmlToPdfConverter(private val context: Context) {
 
@@ -31,7 +39,6 @@ class HtmlToPdfConverter(private val context: Context) {
 
     @UiThread
     fun convert(
-        pdfLocation: File,
         htmlString: String,
         width: Double,
         height: Double,
@@ -40,63 +47,37 @@ class HtmlToPdfConverter(private val context: Context) {
         onPdfGenerationFailed: PdfGenerationFailedCallback? = null,
         onPdfGenerated: PdfGeneratedCallback,
     ) {
-
         Log.d("WTF", "convert ${Thread.currentThread().name} $context ${android.os.Process.myPid()}")
 
-        // maintain pdf generation status
-        var pdfGenerationStarted = false
         try {
-
-            // create new webview
             val pdfWebView = WebView(context)
+            val widthPixels = cmToPixels(width, dpi)
+            val heightPixels = cmToPixels(height, dpi)
+            pdfWebView.layout(0, 0, widthPixels, heightPixels)
+            //WebView.enableSlowWholeDocumentDraw()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 pdfWebView.settings.safeBrowsingEnabled = false
             }
 
-            // set webview enable/ disable javascript property
             enableJavascript?.let { pdfWebView.settings.javaScriptEnabled = it }
-
-            // job name
-            val jobName = Math.random().toString()
-
-            // generate pdf attributes and properties
-            val attributes = getPrintAttributes(width, height, dpi, marginMils)
-
-            // generate print document adapter
-            val printAdapter = getPrintAdapter(pdfWebView, jobName)
 
             pdfWebView.webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView, url: String) {
-                    // Page is done loading;
                     Log.d("WTF", "page finished url ${pdfWebView.width} ${pdfWebView.contentHeight}")
-                }
-            }
-
-            pdfWebView.webChromeClient = object : WebChromeClient() {
-                override fun onProgressChanged(view: WebView, newProgress: Int) {
-                    super.onProgressChanged(view, newProgress)
-                    Log.d("WTF", "progress $newProgress")
-
-                    // some times progress provided by this method is wrong, that's why we are getting progress directly provided by WebView
-                    val progress = pdfWebView.progress
-
-
-                    // when page is fully loaded, start creating PDF
-                    if (progress == 100 && !pdfGenerationStarted) {
-
-                        // change the status of pdf generation
-                        pdfGenerationStarted = true
-
-                        // generate pdf
-                        val pdfPrinter = PdfPrinter(attributes)
-                        pdfPrinter.generate(printAdapter, pdfLocation, onPdfGenerated)
-                    }
+                    val bitmap = captureWebView(pdfWebView, widthPixels, heightPixels)
+                    onPdfGenerated(bitmap)
                 }
             }
 
             // load html in WebView when it's setup is completed
             Log.d("WTF", "load data")
-            pdfWebView.loadDataWithBaseURL(baseUrl, htmlString, "text/html", "utf-8", null)
+            pdfWebView.loadDataWithBaseURL(
+                baseUrl,
+                htmlString,
+                "text/html",
+                "utf-8",
+                null,
+            )
             Log.d("WTF", "after load data")
             println("load data : I'm working in thread ${Thread.currentThread().name} $context ${android.os.Process.myPid()}")
 
@@ -105,26 +86,7 @@ class HtmlToPdfConverter(private val context: Context) {
             onPdfGenerationFailed?.invoke(e)
         }
     }
-
-
-    private fun getPrintAdapter(pdfWebView: WebView, jobName: String): PrintDocumentAdapter {
-        return pdfWebView.createPrintDocumentAdapter(jobName)
-    }
-
-    private fun getPrintAttributes(width: Double, height: Double, dpi: Int, marginMils: Int): PrintAttributes {
-        val size = PrintAttributes.MediaSize(
-            "pdf",
-            "pdf",
-            cmToMils(width),
-            cmToMils(height),
-        )
-        return PrintAttributes.Builder().apply {
-            setMediaSize(size)
-            setResolution(Resolution("pdf", Context.PRINT_SERVICE, dpi, dpi))
-            setMinMargins(PrintAttributes.Margins(marginMils, marginMils, marginMils, marginMils))
-        }.build()
-    }
 }
 
-private typealias PdfGeneratedCallback = (File) -> Unit
+private typealias PdfGeneratedCallback = (Bitmap) -> Unit
 private typealias PdfGenerationFailedCallback = (Exception) -> Unit

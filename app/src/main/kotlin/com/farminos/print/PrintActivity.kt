@@ -5,10 +5,9 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.*
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
-import android.os.ParcelFileDescriptor
-import android.os.ParcelFileDescriptor.MODE_READ_ONLY
 import android.util.Base64
 import android.util.Log
 import android.widget.Toast
@@ -66,17 +65,11 @@ fun htmlToPdfCb(
     height: Double,
     dpi: Int,
     marginMils: Int,
-    callback: (File) -> Unit,
+    callback: (Bitmap) -> Unit,
     errback: (Exception) -> Unit,
 ) {
     val htmlToPdfConvertor = HtmlToPdfConverter(context)
-    val tmpFile = File.createTempFile(
-        System.currentTimeMillis().toString(),
-        null,
-        context.cacheDir,
-    )
     htmlToPdfConvertor.convert(
-        pdfLocation = tmpFile,
         htmlString = content,
         width,
         height,
@@ -85,8 +78,8 @@ fun htmlToPdfCb(
         onPdfGenerationFailed = { exception ->
             errback(exception)
         },
-        onPdfGenerated = { pdfFile ->
-            callback(pdfFile)
+        onPdfGenerated = { bitmap ->
+            callback(bitmap)
         }
     )
 }
@@ -115,16 +108,10 @@ suspend fun htmlToPdf(
     height: Double,
     dpi: Int,
     marginMils: Int,
-): File {
+): Bitmap {
     return suspendCoroutine { continuation ->
         val htmlToPdfConvertor = HtmlToPdfConverter(context)
-        val tmpFile = File.createTempFile(
-            System.currentTimeMillis().toString(),
-            null,
-            context.cacheDir,
-        )
         htmlToPdfConvertor.convert(
-            pdfLocation = tmpFile,
             htmlString = content,
             width = width,
             height = height,
@@ -133,8 +120,8 @@ suspend fun htmlToPdf(
             onPdfGenerationFailed = { exception ->
                 continuation.resumeWithException(exception)
             },
-            onPdfGenerated = { pdfFile ->
-                continuation.resume(pdfFile)
+            onPdfGenerated = { bitmap ->
+                continuation.resume(bitmap)
             }
         )
     }
@@ -258,21 +245,23 @@ class PrintActivity : ComponentActivity() {
             dpi,
             marginMils,
             {
-                val printFn = when(driver) {
-                    Driver.ESC_POS -> ::escPosPrint
-                    Driver.CPCL -> ::cpclPrint
+                val driverClass = when(driver) {
+                    Driver.ESC_POS -> ::EscPosDriver
+                    Driver.CPCL -> ::CpclDriver
                     // TODO: handle this gracefully, factorize with print service
                     Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
                 }
-                printFn(
+                val instance = driverClass(
                     this,
                     defaultPrinter,
                     width,
                     height,
                     dpi,
                     cut,
-                    ParcelFileDescriptor.open(it, MODE_READ_ONLY),
                 )
+                instance.printBitmap(it)
+                // TODO: move this somewhere else
+                instance.disconnect()
             },
             {
                 Log.d("WTF", "boom $it")
