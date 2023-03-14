@@ -5,6 +5,9 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import java.io.ByteArrayInputStream
+import java.io.IOException
+import java.util.zip.GZIPInputStream
 import kotlin.math.ceil
 
 private fun cmToDots(cm: Double, dpi: Int): Int {
@@ -84,3 +87,19 @@ fun milsToCm(mils: Int): Double {
 fun cmToPixels(cm: Double, dpi: Int): Int {
     return (cm / 2.54 * dpi).toInt()
 }
+@Throws(IOException::class)
+fun decompress(compressed: ByteArray?): String {
+    val bufferSize = 32
+    val inputStream = ByteArrayInputStream(compressed)
+    val gis = GZIPInputStream(inputStream, bufferSize)
+    val builder = StringBuilder()
+    val data = ByteArray(bufferSize)
+    var bytesRead: Int
+    while (gis.read(data).also { bytesRead = it } != -1) {
+        builder.append(String(data, 0, bytesRead))
+    }
+    gis.close()
+    inputStream.close()
+    return builder.toString()
+}
+

@@ -7,7 +7,12 @@ import android.os.Build
 import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.annotation.RequiresApi
 import androidx.annotation.UiThread
+import kotlinx.coroutines.*
+import kotlinx.coroutines.GlobalScope.coroutineContext
+import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.resume
 
 fun captureWebView(webView: WebView, widthPixels: Int, heightPixels: Int): Bitmap {
     val bitmap = Bitmap.createBitmap(
@@ -18,6 +23,67 @@ fun captureWebView(webView: WebView, widthPixels: Int, heightPixels: Int): Bitma
     val canvas = Canvas(bitmap)
     webView.draw(canvas)
     return bitmap
+}
+
+fun foo(lambda: () -> Unit) {
+    //...do something heavy
+    lambda()
+}
+
+fun bar(completion: () -> Unit) {
+    GlobalScope.launch(Dispatchers.IO) {
+        suspendCoroutine<Unit> {
+            val lambda = {
+                it.resume(Unit)
+            }
+            foo(lambda)
+        }
+        withContext(Dispatchers.Main) {
+            completion()
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+suspend fun renderHtml(
+    context: Context,
+    content: String,
+    width: Double,
+    height: Double,
+    dpi: Int,
+) = withContext(Dispatchers.Main) {
+    val pageLoadJob = Job()
+    val pageLoadScope = CoroutineScope(coroutineContext + pageLoadJob)
+    val webView = WebView(context)
+    val widthPixels = cmToPixels(width, dpi)
+    val heightPixels = cmToPixels(height, dpi)
+    webView.layout(0, 0, widthPixels, heightPixels)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        webView.settings.safeBrowsingEnabled = false
+    }
+    webView.webViewClient = object : WebViewClient() {
+        override fun onPageFinished(view: WebView, url: String) {
+            super.onPageFinished(view, url)
+            Log.d("WTF", "page finished url ${webView.width} ${webView.contentHeight}")
+            val bitmap = captureWebView(webView, widthPixels, heightPixels)
+            //continuation.resume(bitmap)
+            //callback(bitmap)
+            //pageLoadJob.complete()
+            pageLoadScope.launch {
+                pageLoadJob.complete()
+            }
+        }
+    }
+    Log.d("WTF", "load data 0")
+    webView.loadDataWithBaseURL(
+        null,
+        content,
+        "text/html",
+        "utf-8",
+        null,
+    )
+    Log.d("WTF", "load data 1")
+    pageLoadJob.join()
 }
 
 class HtmlRenderer(private val context: Context) {

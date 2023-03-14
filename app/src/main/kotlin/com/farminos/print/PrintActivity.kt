@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.annotation.UiThread
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -21,6 +22,7 @@ import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
+import androidx.lifecycle.lifecycleScope
 import com.google.protobuf.InvalidProtocolBufferException
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +30,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import java.io.*
-import java.util.zip.GZIPInputStream
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -82,22 +83,6 @@ fun htmlToPdfCb(
             callback(bitmap)
         }
     )
-}
-
-@Throws(IOException::class)
-fun decompress(compressed: ByteArray?): String {
-    val bufferSize = 32
-    val inputStream = ByteArrayInputStream(compressed)
-    val gis = GZIPInputStream(inputStream, bufferSize)
-    val builder = StringBuilder()
-    val data = ByteArray(bufferSize)
-    var bytesRead: Int
-    while (gis.read(data).also { bytesRead = it } != -1) {
-        builder.append(String(data, 0, bytesRead))
-    }
-    gis.close()
-    inputStream.close()
-    return builder.toString()
 }
 
 @UiThread
@@ -191,6 +176,7 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         updatePrintersList()
@@ -221,6 +207,7 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @UiThread
     suspend fun printHtml(content: String) {
         val settings = settingsDataStore.data.first()
@@ -237,6 +224,13 @@ class PrintActivity : ComponentActivity() {
         val marginMils = printerSettings.marginMils
         val cut = printerSettings.cut
         val driver = printerSettings.driver
+        val ctx = this
+        Log.d("WTF", "before before lel")
+        lifecycleScope.launch {
+            val lel = renderHtml(ctx, content, width, height, dpi)
+            Log.d("WTF", "lel $lel")
+        }
+        return
         htmlToPdfCb(
             this,
             content,
