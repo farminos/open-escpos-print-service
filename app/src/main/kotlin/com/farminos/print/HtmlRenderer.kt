@@ -20,7 +20,7 @@ fun captureWebView(webView: WebView, widthPixels: Int, heightPixels: Int): Bitma
     return bitmap
 }
 
-class HtmlToPdfConverter(private val context: Context) {
+class HtmlRenderer(private val context: Context) {
 
     private var baseUrl: String? = null
     private var enableJavascript: Boolean? = null
@@ -39,9 +39,10 @@ class HtmlToPdfConverter(private val context: Context) {
         width: Double,
         height: Double,
         dpi: Int,
+        // TODO: implement margins
         marginMils: Int,
-        onPdfGenerationFailed: PdfGenerationFailedCallback? = null,
-        onPdfGenerated: PdfGeneratedCallback,
+        onPdfGenerationFailed: (Exception) -> Unit,
+        onPdfGenerated: (Bitmap) -> Unit,
     ) {
         Log.d("WTF", "convert ${Thread.currentThread().name} $context ${android.os.Process.myPid()}")
 
@@ -50,7 +51,6 @@ class HtmlToPdfConverter(private val context: Context) {
             val widthPixels = cmToPixels(width, dpi)
             val heightPixels = cmToPixels(height, dpi)
             pdfWebView.layout(0, 0, widthPixels, heightPixels)
-            //WebView.enableSlowWholeDocumentDraw()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 pdfWebView.settings.safeBrowsingEnabled = false
             }
@@ -65,7 +65,6 @@ class HtmlToPdfConverter(private val context: Context) {
                 }
             }
 
-            // load html in WebView when it's setup is completed
             Log.d("WTF", "load data")
             pdfWebView.loadDataWithBaseURL(
                 baseUrl,
@@ -83,6 +82,3 @@ class HtmlToPdfConverter(private val context: Context) {
         }
     }
 }
-
-private typealias PdfGeneratedCallback = (Bitmap) -> Unit
-private typealias PdfGenerationFailedCallback = (Exception) -> Unit

@@ -68,7 +68,7 @@ fun htmlToPdfCb(
     callback: (Bitmap) -> Unit,
     errback: (Exception) -> Unit,
 ) {
-    val htmlToPdfConvertor = HtmlToPdfConverter(context)
+    val htmlToPdfConvertor = HtmlRenderer(context)
     htmlToPdfConvertor.convert(
         htmlString = content,
         width,
@@ -110,7 +110,7 @@ suspend fun htmlToPdf(
     marginMils: Int,
 ): Bitmap {
     return suspendCoroutine { continuation ->
-        val htmlToPdfConvertor = HtmlToPdfConverter(context)
+        val htmlToPdfConvertor = HtmlRenderer(context)
         htmlToPdfConvertor.convert(
             htmlString = content,
             width = width,
