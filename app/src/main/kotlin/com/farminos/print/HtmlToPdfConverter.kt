@@ -20,10 +20,6 @@ fun captureWebView(webView: WebView, widthPixels: Int, heightPixels: Int): Bitma
     return bitmap
 }
 
-private fun cmToPixels(cm: Double, dpi: Int): Int {
-    return (cm / 2.54 * dpi).toInt()
-}
-
 class HtmlToPdfConverter(private val context: Context) {
 
     private var baseUrl: String? = null
