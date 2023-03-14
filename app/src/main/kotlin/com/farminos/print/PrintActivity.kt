@@ -65,6 +65,7 @@ fun htmlToPdfCb(
     width: Double,
     height: Double,
     dpi: Int,
+    marginMils: Int,
     callback: (File) -> Unit,
     errback: (Exception) -> Unit,
 ) {
@@ -80,6 +81,7 @@ fun htmlToPdfCb(
         width,
         height,
         dpi,
+        marginMils,
         onPdfGenerationFailed = { exception ->
             errback(exception)
         },
@@ -90,7 +92,7 @@ fun htmlToPdfCb(
 }
 
 @Throws(IOException::class)
-fun decompress(compressed: ByteArray?): String? {
+fun decompress(compressed: ByteArray?): String {
     val bufferSize = 32
     val inputStream = ByteArrayInputStream(compressed)
     val gis = GZIPInputStream(inputStream, bufferSize)
@@ -112,6 +114,7 @@ suspend fun htmlToPdf(
     width: Double,
     height: Double,
     dpi: Int,
+    marginMils: Int,
 ): File {
     return suspendCoroutine { continuation ->
         val htmlToPdfConvertor = HtmlToPdfConverter(context)
@@ -126,6 +129,7 @@ suspend fun htmlToPdf(
             width = width,
             height = height,
             dpi = dpi,
+            marginMils = marginMils,
             onPdfGenerationFailed = { exception ->
                 continuation.resumeWithException(exception)
             },
@@ -217,20 +221,6 @@ class PrintActivity : ComponentActivity() {
             } else {
                 val pages = JSONArray(decompress(Base64.decode(content, Base64.DEFAULT)))
                 val page = pages.getString(0)
-                //val htmlToPdfConvertor = HtmlToPdfConverter(this)
-                //val tmpFile = File.createTempFile(
-                //    System.currentTimeMillis().toString(),
-                //    null,
-                //    cacheDir,
-                //)
-                //htmlToPdfConvertor.convert(
-                //    pdfLocation = tmpFile,
-                //    htmlString = content,
-                //    onPdfGenerationFailed = { exception ->
-                //    },
-                //    onPdfGenerated = { pdfFile ->
-                //    }
-                //)
                 runBlocking {
                     printHtml(page)
                 }
@@ -257,6 +247,7 @@ class PrintActivity : ComponentActivity() {
         val width = printerSettings.width.toDouble()
         val height = printerSettings.height.toDouble()
         val dpi = printerSettings.dpi
+        val marginMils = printerSettings.marginMils
         val cut = printerSettings.cut
         val driver = printerSettings.driver
         htmlToPdfCb(
@@ -265,6 +256,7 @@ class PrintActivity : ComponentActivity() {
             width,
             height,
             dpi,
+            marginMils,
             {
                 val printFn = when(driver) {
                     Driver.ESC_POS -> ::escPosPrint

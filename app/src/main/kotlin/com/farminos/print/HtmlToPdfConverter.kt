@@ -36,6 +36,7 @@ class HtmlToPdfConverter(private val context: Context) {
         width: Double,
         height: Double,
         dpi: Int,
+        marginMils: Int,
         onPdfGenerationFailed: PdfGenerationFailedCallback? = null,
         onPdfGenerated: PdfGeneratedCallback,
     ) {
@@ -59,7 +60,7 @@ class HtmlToPdfConverter(private val context: Context) {
             val jobName = Math.random().toString()
 
             // generate pdf attributes and properties
-            val attributes = getPrintAttributes(width, height, dpi)
+            val attributes = getPrintAttributes(width, height, dpi, marginMils)
 
             // generate print document adapter
             val printAdapter = getPrintAdapter(pdfWebView, jobName)
@@ -110,7 +111,7 @@ class HtmlToPdfConverter(private val context: Context) {
         return pdfWebView.createPrintDocumentAdapter(jobName)
     }
 
-    private fun getPrintAttributes(width: Double, height: Double, dpi: Int): PrintAttributes {
+    private fun getPrintAttributes(width: Double, height: Double, dpi: Int, marginMils: Int): PrintAttributes {
         val size = PrintAttributes.MediaSize(
             "pdf",
             "pdf",
@@ -120,7 +121,7 @@ class HtmlToPdfConverter(private val context: Context) {
         return PrintAttributes.Builder().apply {
             setMediaSize(size)
             setResolution(Resolution("pdf", Context.PRINT_SERVICE, dpi, dpi))
-            setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+            setMinMargins(PrintAttributes.Margins(marginMils, marginMils, marginMils, marginMils))
         }.build()
     }
 }
