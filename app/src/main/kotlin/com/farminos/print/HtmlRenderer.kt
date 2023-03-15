@@ -33,6 +33,7 @@ suspend fun renderHtml(
     height: Double,
     dpi: Int,
 ): Bitmap {
+    // TODO: recycle webview for several renders
     return suspendCoroutine { cont ->
         val webView = WebView(context)
         val widthPixels = cmToPixels(width, dpi)
@@ -44,6 +45,7 @@ suspend fun renderHtml(
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
+                Thread.sleep(500)
                 val bitmap = captureWebView(webView, widthPixels, heightPixels)
                 cont.resume(bitmap)
             }

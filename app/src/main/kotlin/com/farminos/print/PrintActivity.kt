@@ -193,9 +193,8 @@ class PrintActivity : ComponentActivity() {
                 // TODO: toast
             } else {
                 val pages = JSONArray(decompress(Base64.decode(content, Base64.DEFAULT)))
-                val page = pages.getString(0)
-                runBlocking {
-                    printHtml(page)
+                lifecycleScope.launch {
+                    printHtml(pages)
                 }
             }
             finish()
@@ -209,7 +208,7 @@ class PrintActivity : ComponentActivity() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     @UiThread
-    suspend fun printHtml(content: String) {
+    suspend fun printHtml(pages: JSONArray) {
         val settings = settingsDataStore.data.first()
         val defaultPrinter = settings.defaultPrinter
         val printerSettings = settings.printersMap[defaultPrinter]
@@ -226,59 +225,32 @@ class PrintActivity : ComponentActivity() {
         val driver = printerSettings.driver
         val ctx = this
         Log.d("WTF", "before before lel")
-        lifecycleScope.launch {
-            val bitmap = renderHtml(ctx, content, width, height, dpi)
-            Log.d("WTF", "lel $bitmap")
-            val driverClass = when(driver) {
-                Driver.ESC_POS -> ::EscPosDriver
-                Driver.CPCL -> ::CpclDriver
-                // TODO: handle this gracefully, factorize with print service
-                Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
-            }
-            val instance = driverClass(
-                ctx,
-                defaultPrinter,
-                width,
-                height,
-                dpi,
-                cut,
-            )
-            instance.printBitmap(bitmap)
-            // TODO: move this somewhere else
-            instance.disconnect()
+        val driverClass = when(driver) {
+            Driver.ESC_POS -> ::EscPosDriver
+            Driver.CPCL -> ::CpclDriver
+            // TODO: handle this gracefully, factorize with print service
+            Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
         }
-        Log.d("WTF", "after launch")
-        //return
-        //htmlToPdfCb(
-        //    this,
-        //    content,
-        //    width,
-        //    height,
-        //    dpi,
-        //    marginMils,
-        //    {
-        //        val driverClass = when(driver) {
-        //            Driver.ESC_POS -> ::EscPosDriver
-        //            Driver.CPCL -> ::CpclDriver
-        //            // TODO: handle this gracefully, factorize with print service
-        //            Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
-        //        }
-        //        val instance = driverClass(
-        //            this,
-        //            defaultPrinter,
-        //            width,
-        //            height,
-        //            dpi,
-        //            cut,
-        //        )
-        //        instance.printBitmap(it)
-        //        // TODO: move this somewhere else
-        //        instance.disconnect()
-        //    },
-        //    {
-        //        Log.d("WTF", "boom $it")
-        //    }
-        //)
+        val instance = driverClass(
+            ctx,
+            defaultPrinter,
+            width,
+            height,
+            dpi,
+            cut,
+        )
+        for (i in 0 until pages.length()) {
+            val page = pages.getString(i)
+            val bitmap = renderHtml(ctx, page, width, height, dpi)
+            instance.printBitmap(bitmap)
+            val speed = 3 // cm/s
+            val duration = (height / speed * 1000).toLong()
+            Log.d("WTF", "lel $i $bitmap $duration")
+            Thread.sleep(1500)
+            // TODO: using delay instead makes it hang
+        }
+        // TODO: move this somewhere else
+        instance.disconnect()
     }
 
     override fun onDestroy() {

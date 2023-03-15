@@ -64,6 +64,7 @@ class EscPosDriver(
             // TODO: sleep ?
             commands.cutPaper()
         }
+        commands.reset()
     }
 
     override fun disconnect() {
