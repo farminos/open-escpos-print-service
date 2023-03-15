@@ -227,40 +227,58 @@ class PrintActivity : ComponentActivity() {
         val ctx = this
         Log.d("WTF", "before before lel")
         lifecycleScope.launch {
-            val lel = renderHtml(ctx, content, width, height, dpi)
-            Log.d("WTF", "lel $lel")
-        }
-        return
-        htmlToPdfCb(
-            this,
-            content,
-            width,
-            height,
-            dpi,
-            marginMils,
-            {
-                val driverClass = when(driver) {
-                    Driver.ESC_POS -> ::EscPosDriver
-                    Driver.CPCL -> ::CpclDriver
-                    // TODO: handle this gracefully, factorize with print service
-                    Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
-                }
-                val instance = driverClass(
-                    this,
-                    defaultPrinter,
-                    width,
-                    height,
-                    dpi,
-                    cut,
-                )
-                instance.printBitmap(it)
-                // TODO: move this somewhere else
-                instance.disconnect()
-            },
-            {
-                Log.d("WTF", "boom $it")
+            val bitmap = renderHtml(ctx, content, width, height, dpi)
+            Log.d("WTF", "lel $bitmap")
+            val driverClass = when(driver) {
+                Driver.ESC_POS -> ::EscPosDriver
+                Driver.CPCL -> ::CpclDriver
+                // TODO: handle this gracefully, factorize with print service
+                Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
             }
-        )
+            val instance = driverClass(
+                ctx,
+                defaultPrinter,
+                width,
+                height,
+                dpi,
+                cut,
+            )
+            instance.printBitmap(bitmap)
+            // TODO: move this somewhere else
+            instance.disconnect()
+        }
+        Log.d("WTF", "after launch")
+        //return
+        //htmlToPdfCb(
+        //    this,
+        //    content,
+        //    width,
+        //    height,
+        //    dpi,
+        //    marginMils,
+        //    {
+        //        val driverClass = when(driver) {
+        //            Driver.ESC_POS -> ::EscPosDriver
+        //            Driver.CPCL -> ::CpclDriver
+        //            // TODO: handle this gracefully, factorize with print service
+        //            Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
+        //        }
+        //        val instance = driverClass(
+        //            this,
+        //            defaultPrinter,
+        //            width,
+        //            height,
+        //            dpi,
+        //            cut,
+        //        )
+        //        instance.printBitmap(it)
+        //        // TODO: move this somewhere else
+        //        instance.disconnect()
+        //    },
+        //    {
+        //        Log.d("WTF", "boom $it")
+        //    }
+        //)
     }
 
     override fun onDestroy() {
