@@ -87,6 +87,8 @@ class EscPosDriver(
     }
 
     override fun disconnect() {
+        // TODO: wait before disconnecting
+        Thread.sleep(1000)
         commands.disconnect()
     }
 }
