@@ -5,16 +5,18 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.*
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
+import android.util.Log
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.datastore.core.CorruptionException
@@ -23,6 +25,8 @@ import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
 import androidx.lifecycle.lifecycleScope
 import com.google.protobuf.InvalidProtocolBufferException
+import com.izettle.html2bitmap.Html2Bitmap
+import com.izettle.html2bitmap.content.WebViewContent
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -55,6 +59,7 @@ val Context.settingsDataStore: DataStore<Settings> by dataStore(
 
 data class Printer(val address: String, val name: String)
 
+@Suppress("DEPRECATION")
 class PrintActivity : ComponentActivity() {
     private val bluetoothBroadcastReceiver = BluetoothBroadcastReceiver(this)
     private val appCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -136,11 +141,11 @@ class PrintActivity : ComponentActivity() {
                 // TODO: toast
             } else {
                 val pages = JSONArray(decompress(Base64.decode(content, Base64.DEFAULT)))
-                lifecycleScope.launch {
+                lifecycleScope.launch(Dispatchers.IO) {
                     printHtml(pages)
                 }
             }
-            //finish()
+            finish()
             return
         }
 
@@ -184,28 +189,19 @@ class PrintActivity : ComponentActivity() {
             speedLimit,
             cutDelay,
         )
-        val renderer = HtmlRenderer(ctx, width, height, dpi)
-        //ctx.setContent {
-        //    AndroidView(
-        //        factory = {
-        //            renderer.webView.apply {
-        //                layoutParams = ViewGroup.LayoutParams(
-        //                    384,
-        //                    639,
-        //                )
-        //                //webViewClient = WebViewClient()
-        //                //loadUrl(mUrl)
-        //            }
-        //        },
-        //        update = {
-        //        //it.loadUrl(mUrl)
-        //        }
-        //    )
-        //}
         for (i in 0 until pages.length()) {
             val page = pages.getString(i)
-            val bitmap = renderer.render(page, i.toLong())
-            instance.printBitmap(bitmap)
+            val bitmap = Html2Bitmap.Builder()
+                .setContext(ctx)
+                .setBitmapWidth(cmToPixels(width, dpi))
+                .setContent(WebViewContent.html(page))
+                .setScreenshotDelay(0)
+                .setMeasureDelay(0)
+                .build()
+                .bitmap;
+            if (bitmap != null) {
+                instance.printBitmap(bitmap)
+            }
         }
         // TODO: move this somewhere else
         instance.disconnect()
