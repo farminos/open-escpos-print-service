@@ -20,7 +20,20 @@ abstract class PrinterDriver(
     protected val height: Double,
     protected val dpi: Int,
     protected val cut: Boolean,
+    private val speed: Double = 2.0, // cm/s
 ) {
+    private var lastTime: Long? = null
+
+    protected fun delayForlength(cm: Double) {
+        val now = System.currentTimeMillis()
+        if (lastTime != null) {
+            val elapsed = now - lastTime!!
+            val duration = (cm / speed * 1000).toLong()
+            Thread.sleep(Math.max(0, duration - elapsed))
+        }
+        lastTime = now
+    }
+
     abstract fun printBitmap(bitmap: Bitmap)
 
     abstract fun disconnect()
@@ -30,9 +43,6 @@ abstract class PrinterDriver(
             printBitmap(page)
         }
         document.close()
-        // TODO
-        val speed = 3 // cm/s
-        Thread.sleep((height / speed * 1000).toLong())
     }
 }
 
@@ -56,8 +66,9 @@ class EscPosDriver(
     }
 
     override fun printBitmap(bitmap: Bitmap) {
-        bitmapSlices(bitmap, 128).forEach {
-            Thread.sleep(100) // TODO: Needed on MTP-2 printer
+        val heightPx = 128
+        bitmapSlices(bitmap, heightPx).forEach {
+            delayForlength(pixelsToCm(heightPx, dpi))
             commands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
         }
         if (cut) {
@@ -102,6 +113,7 @@ class CpclDriver(
     }
 
     override fun printBitmap(bitmap: Bitmap) {
+        delayForlength(height)
         cpclPrinter.setForm(0, dpi, dpi, (height * 100).toInt(), 1)
         cpclPrinter.printBitmap(bitmap, 0, 0)
         cpclPrinter.printForm()

@@ -182,11 +182,6 @@ class PrintActivity : ComponentActivity() {
             val page = pages.getString(i)
             val bitmap = renderer.render(page)
             instance.printBitmap(bitmap)
-            val speed = 3 // cm/s
-            val duration = (height / speed * 1000).toLong()
-            Log.d("WTF", "lel $i $bitmap $duration")
-            // TODO: using delay instead makes it hang forever
-            Thread.sleep(1500)
         }
         // TODO: move this somewhere else
         instance.disconnect()

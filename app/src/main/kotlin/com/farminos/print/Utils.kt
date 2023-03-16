@@ -87,6 +87,11 @@ fun milsToCm(mils: Int): Double {
 fun cmToPixels(cm: Double, dpi: Int): Int {
     return (cm / 2.54 * dpi).toInt()
 }
+
+fun pixelsToCm(pixels: Int, dpi: Int): Double {
+    return pixels / dpi * 2.54
+}
+
 @Throws(IOException::class)
 fun decompress(compressed: ByteArray?): String {
     val bufferSize = 32
