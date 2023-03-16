@@ -197,6 +197,7 @@ class FarminOSPrintService : PrintService() {
             resolution.horizontalDpi,
             printer.settings.cut,
             printer.settings.speedLimit,
+            printer.settings.cutDelay,
         )
         instance.printDocument(copy)
         // TODO: move this somewhere else

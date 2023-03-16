@@ -301,6 +301,18 @@ fun PrinterCard(
                         }
                     },
                 )
+                LabelledTextField(
+                    label = "Cut delay (s)",
+                    value = settings.cutDelay.toString(),
+                    transform = {cutDelay ->
+                        cutDelay.toFloatOrNull()
+                    },
+                    onValueChange = {cutDelay ->
+                        context.updatePrinterSetting(address = printer.address) {
+                            it.setCutDelay(cutDelay)
+                        }
+                    },
+                )
                 LabelledSwitch(
                     label = "Cut after each page",
                     checked = settings.cut,
@@ -379,4 +391,5 @@ val DEFAULT_PRINTER_SETTINGS: PrinterSettings = PrinterSettings.newBuilder()
     .setMarginMils(0)
     .setCut(true)
     .setSpeedLimit(2.0F)
+    .setCutDelay(0.0F)
     .build()

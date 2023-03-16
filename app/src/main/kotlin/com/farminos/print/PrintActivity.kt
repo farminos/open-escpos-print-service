@@ -8,10 +8,13 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.datastore.core.CorruptionException
@@ -116,6 +119,7 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.M)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         updatePrintersList()
@@ -136,7 +140,7 @@ class PrintActivity : ComponentActivity() {
                     printHtml(pages)
                 }
             }
-            finish()
+            //finish()
             return
         }
 
@@ -145,6 +149,7 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.M)
     private suspend fun printHtml(pages: JSONArray) {
         val settings = settingsDataStore.data.first()
         val defaultPrinter = settings.defaultPrinter
@@ -161,6 +166,7 @@ class PrintActivity : ComponentActivity() {
         val cut = printerSettings.cut
         val driver = printerSettings.driver
         val speedLimit = printerSettings.speedLimit
+        val cutDelay = printerSettings.cutDelay
         val ctx = this
         val driverClass = when(driver) {
             Driver.ESC_POS -> ::EscPosDriver
@@ -176,11 +182,29 @@ class PrintActivity : ComponentActivity() {
             dpi,
             cut,
             speedLimit,
+            cutDelay,
         )
         val renderer = HtmlRenderer(ctx, width, height, dpi)
+        //ctx.setContent {
+        //    AndroidView(
+        //        factory = {
+        //            renderer.webView.apply {
+        //                layoutParams = ViewGroup.LayoutParams(
+        //                    384,
+        //                    639,
+        //                )
+        //                //webViewClient = WebViewClient()
+        //                //loadUrl(mUrl)
+        //            }
+        //        },
+        //        update = {
+        //        //it.loadUrl(mUrl)
+        //        }
+        //    )
+        //}
         for (i in 0 until pages.length()) {
             val page = pages.getString(i)
-            val bitmap = renderer.render(page)
+            val bitmap = renderer.render(page, i.toLong())
             instance.printBitmap(bitmap)
         }
         // TODO: move this somewhere else

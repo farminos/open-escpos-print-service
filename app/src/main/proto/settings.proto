@@ -17,6 +17,7 @@ message PrinterSettings {
   int32 margin_mils = 6;
   bool cut = 7;
   float speedLimit = 8;
+  float cutDelay = 9;
 }
 
 message Settings {
