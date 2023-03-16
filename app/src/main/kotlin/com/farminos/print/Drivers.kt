@@ -60,7 +60,10 @@ class EscPosDriver(
 ): PrinterDriver(context, address, width, height, dpi, cut, speedLimit, cutDelay) {
     private val commands: EscPosPrinterCommands
     init {
-        val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
+        val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(
+            context,
+            BluetoothManager::class.java
+        )!!
         val bluetoothAdapter = bluetoothManager.adapter
         val device = bluetoothAdapter.getRemoteDevice(address)
         val connection = BluetoothConnection(device)
@@ -109,6 +112,9 @@ class CpclDriver(
 
     init {
         bluetoothPort.connect(address)
+        while (!bluetoothPort.isConnected) {
+            Thread.sleep(100)
+        }
         // TODO: wait until it is actually connected
         requestHandlerThread = Thread(RequestHandler())
         requestHandlerThread.start()
