@@ -5,7 +5,6 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.*
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
@@ -14,8 +13,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
-import androidx.annotation.UiThread
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.datastore.core.CorruptionException
@@ -30,9 +27,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import java.io.*
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 
 object SettingsSerializer : Serializer<Settings> {
@@ -58,59 +52,6 @@ val Context.settingsDataStore: DataStore<Settings> by dataStore(
 )
 
 data class Printer(val address: String, val name: String)
-
-fun htmlToPdfCb(
-    context: Context,
-    content: String,
-    width: Double,
-    height: Double,
-    dpi: Int,
-    marginMils: Int,
-    callback: (Bitmap) -> Unit,
-    errback: (Exception) -> Unit,
-) {
-    val htmlToPdfConvertor = HtmlRenderer(context)
-    htmlToPdfConvertor.convert(
-        htmlString = content,
-        width,
-        height,
-        dpi,
-        marginMils,
-        onPdfGenerationFailed = { exception ->
-            errback(exception)
-        },
-        onPdfGenerated = { bitmap ->
-            callback(bitmap)
-        }
-    )
-}
-
-@UiThread
-suspend fun htmlToPdf(
-    context: Context,
-    content: String,
-    width: Double,
-    height: Double,
-    dpi: Int,
-    marginMils: Int,
-): Bitmap {
-    return suspendCoroutine { continuation ->
-        val htmlToPdfConvertor = HtmlRenderer(context)
-        htmlToPdfConvertor.convert(
-            htmlString = content,
-            width = width,
-            height = height,
-            dpi = dpi,
-            marginMils = marginMils,
-            onPdfGenerationFailed = { exception ->
-                continuation.resumeWithException(exception)
-            },
-            onPdfGenerated = { bitmap ->
-                continuation.resume(bitmap)
-            }
-        )
-    }
-}
 
 class PrintActivity : ComponentActivity() {
     private val bluetoothBroadcastReceiver = BluetoothBroadcastReceiver(this)
@@ -176,7 +117,6 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         updatePrintersList()
@@ -206,9 +146,7 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    @UiThread
-    suspend fun printHtml(pages: JSONArray) {
+    private suspend fun printHtml(pages: JSONArray) {
         val settings = settingsDataStore.data.first()
         val defaultPrinter = settings.defaultPrinter
         val printerSettings = settings.printersMap[defaultPrinter]
@@ -239,15 +177,16 @@ class PrintActivity : ComponentActivity() {
             dpi,
             cut,
         )
+        val renderer = HtmlRenderer(ctx, width, height, dpi)
         for (i in 0 until pages.length()) {
             val page = pages.getString(i)
-            val bitmap = renderHtml(ctx, page, width, height, dpi)
+            val bitmap = renderer.render(page)
             instance.printBitmap(bitmap)
             val speed = 3 // cm/s
             val duration = (height / speed * 1000).toLong()
             Log.d("WTF", "lel $i $bitmap $duration")
+            // TODO: using delay instead makes it hang forever
             Thread.sleep(1500)
-            // TODO: using delay instead makes it hang
         }
         // TODO: move this somewhere else
         instance.disconnect()
