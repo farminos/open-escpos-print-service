@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.citizen.jpos.command.CPCLConst
 import com.citizen.jpos.printer.CPCLPrinter
@@ -20,15 +21,15 @@ abstract class PrinterDriver(
     protected val height: Double,
     protected val dpi: Int,
     protected val cut: Boolean,
-    private val speed: Double = 2.0, // cm/s
+    private val speedLimit: Float, // cm/s
 ) {
     private var lastTime: Long? = null
 
     protected fun delayForlength(cm: Double) {
         val now = System.currentTimeMillis()
-        if (lastTime != null) {
+        if (lastTime != null && speedLimit > 0) {
             val elapsed = now - lastTime!!
-            val duration = (cm / speed * 1000).toLong()
+            val duration = (cm / speedLimit * 1000).toLong()
             Thread.sleep(Math.max(0, duration - elapsed))
         }
         lastTime = now
@@ -53,7 +54,8 @@ class EscPosDriver(
     height: Double,
     dpi: Int,
     cut: Boolean,
-): PrinterDriver(context, address, width, height, dpi, cut) {
+    speedLimit: Float,
+): PrinterDriver(context, address, width, height, dpi, cut, speedLimit) {
     private val commands: EscPosPrinterCommands
     init {
         val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)!!
@@ -90,7 +92,8 @@ class CpclDriver(
     height: Double,
     dpi: Int,
     cut: Boolean,
-): PrinterDriver(context, address, width, height, dpi, cut) {
+    speedLimit: Float,
+): PrinterDriver(context, address, width, height, dpi, cut, speedLimit) {
     private val bluetoothPort: BluetoothPort = BluetoothPort.getInstance()
     private val requestHandlerThread: Thread
     private val cpclPrinter: CPCLPrinter

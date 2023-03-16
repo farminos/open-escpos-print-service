@@ -289,6 +289,18 @@ fun PrinterCard(
                         }
                     },
                 )
+                LabelledTextField(
+                    label = "Speed limit (cm/s)",
+                    value = settings.speedLimit.toString(),
+                    transform = {speedLimit ->
+                        speedLimit.toFloatOrNull()
+                    },
+                    onValueChange = {speedLimit ->
+                        context.updatePrinterSetting(address = printer.address) {
+                            it.setSpeedLimit(speedLimit)
+                        }
+                    },
+                )
                 LabelledSwitch(
                     label = "Cut after each page",
                     checked = settings.cut,
@@ -344,7 +356,7 @@ fun SettingsScreen(
                 } else {
                     printers
                         .forEach {
-                            val printerSettings = settings.printersMap[it.address] ?: PrinterSettings.getDefaultInstance()
+                            val printerSettings = settings.printersMap[it.address] ?: DEFAULT_PRINTER_SETTINGS
                             PrinterCard(
                                 context = context,
                                 printer = it,
@@ -357,3 +369,14 @@ fun SettingsScreen(
         }
     }
 }
+
+val DEFAULT_PRINTER_SETTINGS: PrinterSettings = PrinterSettings.newBuilder()
+    .setEnabled(false)
+    .setDriver(Driver.ESC_POS)
+    .setDpi(203)
+    .setWidth(5.0F)
+    .setHeight(8.0F)
+    .setMarginMils(0)
+    .setCut(true)
+    .setSpeedLimit(2.0F)
+    .build()

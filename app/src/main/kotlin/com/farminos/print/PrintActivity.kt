@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -161,8 +160,8 @@ class PrintActivity : ComponentActivity() {
         val marginMils = printerSettings.marginMils
         val cut = printerSettings.cut
         val driver = printerSettings.driver
+        val speedLimit = printerSettings.speedLimit
         val ctx = this
-        Log.d("WTF", "before before lel")
         val driverClass = when(driver) {
             Driver.ESC_POS -> ::EscPosDriver
             Driver.CPCL -> ::CpclDriver
@@ -176,6 +175,7 @@ class PrintActivity : ComponentActivity() {
             height,
             dpi,
             cut,
+            speedLimit,
         )
         val renderer = HtmlRenderer(ctx, width, height, dpi)
         for (i in 0 until pages.length()) {

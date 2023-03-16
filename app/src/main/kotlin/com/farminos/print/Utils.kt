@@ -10,8 +10,20 @@ import java.io.IOException
 import java.util.zip.GZIPInputStream
 import kotlin.math.ceil
 
-private fun cmToDots(cm: Double, dpi: Int): Int {
-    return ceil((cm / 2.54) * dpi).toInt()
+@Throws(IOException::class)
+fun decompress(compressed: ByteArray?): String {
+    val bufferSize = 32
+    val inputStream = ByteArrayInputStream(compressed)
+    val gis = GZIPInputStream(inputStream, bufferSize)
+    val builder = StringBuilder()
+    val data = ByteArray(bufferSize)
+    var bytesRead: Int
+    while (gis.read(data).also { bytesRead = it } != -1) {
+        builder.append(String(data, 0, bytesRead))
+    }
+    gis.close()
+    inputStream.close()
+    return builder.toString()
 }
 
 fun convertTransparentToWhite(bitmap: Bitmap) {
@@ -76,6 +88,10 @@ fun bitmapSlices(bitmap: Bitmap, step: Int) = sequence<Bitmap> {
     }
 }
 
+private fun cmToDots(cm: Double, dpi: Int): Int {
+    return ceil((cm / 2.54) * dpi).toInt()
+}
+
 fun cmToMils(cm: Double): Int {
     return ceil(cm / 2.54 * 1000).toInt()
 }
@@ -89,22 +105,5 @@ fun cmToPixels(cm: Double, dpi: Int): Int {
 }
 
 fun pixelsToCm(pixels: Int, dpi: Int): Double {
-    return pixels / dpi * 2.54
+    return pixels.toDouble() / dpi * 2.54
 }
-
-@Throws(IOException::class)
-fun decompress(compressed: ByteArray?): String {
-    val bufferSize = 32
-    val inputStream = ByteArrayInputStream(compressed)
-    val gis = GZIPInputStream(inputStream, bufferSize)
-    val builder = StringBuilder()
-    val data = ByteArray(bufferSize)
-    var bytesRead: Int
-    while (gis.read(data).also { bytesRead = it } != -1) {
-        builder.append(String(data, 0, bytesRead))
-    }
-    gis.close()
-    inputStream.close()
-    return builder.toString()
-}
-
