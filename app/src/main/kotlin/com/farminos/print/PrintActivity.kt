@@ -189,19 +189,8 @@ class PrintActivity : ComponentActivity() {
             speedLimit,
             cutDelay,
         )
-        for (i in 0 until pages.length()) {
-            val page = pages.getString(i)
-            val bitmap = Html2Bitmap.Builder()
-                .setContext(ctx)
-                .setBitmapWidth(cmToPixels(width, dpi))
-                .setContent(WebViewContent.html(page))
-                .setScreenshotDelay(0)
-                .setMeasureDelay(0)
-                .build()
-                .bitmap;
-            if (bitmap != null) {
-                instance.printBitmap(bitmap)
-            }
+        renderPages(ctx, width, dpi, pages).forEach {
+            instance.printBitmap(it)
         }
         // TODO: move this somewhere else
         instance.disconnect()
@@ -246,6 +235,27 @@ class PrintActivity : ComponentActivity() {
                     Toast.makeText(context, "bluetooth is off.", Toast.LENGTH_SHORT).show()
                 }
             }
+        }
+    }
+}
+
+private fun renderHtml(context: Context, width: Double, dpi: Int, content: String): Bitmap? {
+    return Html2Bitmap.Builder()
+        .setContext(context)
+        .setBitmapWidth(cmToPixels(width, dpi))
+        .setContent(WebViewContent.html(content))
+        .setScreenshotDelay(0)
+        .setMeasureDelay(0)
+        .build()
+        .bitmap;
+}
+
+private fun renderPages(context: Context, width: Double, dpi: Int, pages: JSONArray) = sequence {
+    for (i in 0 until pages.length()) {
+        val page = pages.getString(i)
+        val bitmap = renderHtml(context, width, dpi, page)
+        if (bitmap != null) {
+            yield(bitmap)
         }
     }
 }
