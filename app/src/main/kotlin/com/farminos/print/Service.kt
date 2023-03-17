@@ -70,7 +70,7 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
                 } else {
                     val id = context.generatePrinterId(it.address)
                     PrinterWithSettingsAndInfo(
-                        printer = Printer(address = it.address, name = it.name),
+                        printer = Printer(address = it.address, name = it.name, connection = PrinterConnection.BLUETOOTH),
                         settings = printerSettings,
                         info = buildPrinterInfo(id, it.name, printerSettings)
                     )

@@ -6,6 +6,10 @@ import android.bluetooth.BluetoothManager
 import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.net.Uri
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
+import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
@@ -16,6 +20,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.getSystemService
 import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
@@ -30,6 +35,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import java.io.*
+import kotlin.coroutines.resumeWithException
+import kotlin.time.Duration.Companion.seconds
 
 
 object SettingsSerializer : Serializer<Settings> {
@@ -54,7 +61,10 @@ val Context.settingsDataStore: DataStore<Settings> by dataStore(
     serializer = SettingsSerializer
 )
 
-data class Printer(val address: String, val name: String)
+enum class PrinterConnection {
+    BLUETOOTH, WIFI
+}
+data class Printer(val address: String, val name: String, val connection: PrinterConnection)
 
 @Suppress("DEPRECATION")
 class PrintActivity : ComponentActivity() {
@@ -84,11 +94,15 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
-    fun updatePrinterSetting(address: String, updater: (ps: PrinterSettings.Builder) -> PrinterSettings.Builder) {
+    fun updatePrinterSetting(
+        address: String,
+        updater: (ps: PrinterSettings.Builder) -> PrinterSettings.Builder
+    ) {
         appCoroutineScope.launch {
             this@PrintActivity.settingsDataStore.updateData { currentSettings ->
                 val builder = currentSettings.toBuilder()
-                val printerBuilder = (builder.printersMap[address] ?: PrinterSettings.getDefaultInstance()).toBuilder()
+                val printerBuilder = (builder.printersMap[address]
+                    ?: PrinterSettings.getDefaultInstance()).toBuilder()
                 builder.putPrinters(address, updater(printerBuilder).build())
                 return@updateData builder.build()
             }
@@ -114,11 +128,13 @@ class PrintActivity : ComponentActivity() {
         bluetoothEnabled.update {
             bluetoothAdapter.isEnabled
         }
+
         printers.update {
             bluetoothAdapter.bondedDevices
                 .filter { it.bluetoothClass.deviceClass == 1664 }  // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
-                .map { Printer(address = it.address, name = it.name) }
+                .map { Printer(address = it.address, name = it.name, connection = PrinterConnection.BLUETOOTH) }
         }
+        WirelessDiscovery.discoverService(this@PrintActivity)
     }
 
     @RequiresApi(Build.VERSION_CODES.M)
@@ -163,7 +179,7 @@ class PrintActivity : ComponentActivity() {
         val dpi = printerSettings.dpi
         val driver = printerSettings.driver
         val ctx = this
-        val driverClass = when(driver) {
+        val driverClass = when (driver) {
             Driver.ESC_POS -> ::EscPosDriver
             Driver.CPCL -> ::CpclDriver
             // TODO: handle this gracefully, factorize with print service
@@ -239,4 +255,67 @@ private fun renderPages(context: Context, width: Float, dpi: Int, pages: JSONArr
             yield(bitmap)
         }
     }
+}
+
+// TODO: add timeout-ing so that it can be used in Service.listPrinters alongside bluetooth discovery
+object WirelessDiscovery {
+    private const val SERVICE_TYPE = "_ipp._tcp"
+    fun discoverService(context: PrintActivity) {
+        val nsdManager = requireNotNull(context.getSystemService<NsdManager>())
+
+        val discoveryListener = object : NsdManager.DiscoveryListener {
+            override fun onStartDiscoveryFailed(serviceType: String?, errorCode: Int) {
+                Log.d("NSD", "Start Discovery Failed")
+            }
+
+            override fun onStopDiscoveryFailed(serviceType: String?, errorCode: Int) {
+            }
+
+            override fun onDiscoveryStarted(serviceType: String?) {
+                Log.d("NSD", "Service Discovery Started")
+            }
+
+            override fun onDiscoveryStopped(serviceType: String?) {
+                Log.d("NSD", "Service Discovery Stopped")
+            }
+
+            override fun onServiceFound(serviceInfo: NsdServiceInfo) {
+                Log.d("NSD", "Service Found: ${serviceInfo}")
+                if (!isCorrectServiceType(serviceInfo)) {
+                    return
+                }
+
+                nsdManager.resolveService(
+                    serviceInfo,
+                    object : NsdManager.ResolveListener {
+                        override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                            Log.d("NSD", "Resolve Failed")
+                        }
+
+                        override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
+                            Log.d("NSD", "Service Resolved")
+                            val name = serviceInfo.serviceName
+                            val address = serviceInfo.host.hostAddress!!
+                            val port = serviceInfo.port
+                            context.printers.update {
+                                it + Printer(address, name, connection = PrinterConnection.WIFI)
+                            }
+                        }
+                    }
+                )
+            }
+
+            override fun onServiceLost(serviceInfo: NsdServiceInfo?) {
+                Log.d("NSD", "Service Lost")
+            }
+        }
+
+        nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
+    }
+
+    internal fun isCorrectServiceType(serviceInfo: NsdServiceInfo) =
+        normalizeServiceName(serviceInfo.serviceType) == SERVICE_TYPE
+
+    private fun normalizeServiceName(serviceName: String) =
+        serviceName.trim('.')
 }

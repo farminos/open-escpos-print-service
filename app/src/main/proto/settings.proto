@@ -8,6 +8,11 @@ enum Driver {
   CPCL = 1;
 }
 
+enum Connection {
+  BLUETOOTH = 0;
+  WIFI = 1;
+}
+
 message PrinterSettings {
   bool enabled = 1;
   Driver driver = 2;
@@ -18,9 +23,10 @@ message PrinterSettings {
   bool cut = 7;
   float speed_limit = 8;
   float cut_delay = 9;
-  float margin_right = 10;
-  float margin_top = 11;
-  float margin_bottom = 12;
+  Connection connection = 10;
+  float margin_right = 11;
+  float margin_top = 12;
+  float margin_bottom = 13;
 }
 
 message Settings {
