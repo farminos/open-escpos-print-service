@@ -6,6 +6,9 @@ import android.bluetooth.BluetoothManager
 import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
@@ -160,6 +163,10 @@ class PrintActivity : ComponentActivity() {
             return
         }
         val width = printerSettings.width
+        val marginLeft = printerSettings.marginLeft
+        val marginTop = printerSettings.marginTop
+        val marginRight = printerSettings.marginRight
+        val marginBottom = printerSettings.marginBottom
         val dpi = printerSettings.dpi
         val driver = printerSettings.driver
         val ctx = this
@@ -170,7 +177,7 @@ class PrintActivity : ComponentActivity() {
             else -> throw java.lang.Exception("Unrecognized driver in settings")
         }
         val instance = driverClass(ctx, defaultPrinter, printerSettings)
-        renderPages(ctx, width, dpi, pages).forEach {
+        renderPages(ctx, width, dpi, pages, marginLeft, marginTop, marginRight, marginBottom).forEach {
             instance.printBitmap(it)
         }
         // TODO: move this somewhere else
@@ -220,10 +227,14 @@ class PrintActivity : ComponentActivity() {
     }
 }
 
-private fun renderHtml(context: Context, width: Float, dpi: Int, content: String): Bitmap? {
+private fun renderHtml(
+    context: Context,
+    widthPixels: Int,
+    content: String
+): Bitmap? {
     return Html2Bitmap.Builder()
         .setContext(context)
-        .setBitmapWidth(cmToPixels(width, dpi))
+        .setBitmapWidth(widthPixels)
         .setContent(WebViewContent.html(content))
         .setScreenshotDelay(0)
         .setMeasureDelay(0)
@@ -231,12 +242,31 @@ private fun renderHtml(context: Context, width: Float, dpi: Int, content: String
         .bitmap
 }
 
-private fun renderPages(context: Context, width: Float, dpi: Int, pages: JSONArray) = sequence {
+private fun renderPages(
+    context: Context,
+    width: Float,
+    dpi: Int,
+    pages: JSONArray,
+    marginLeft: Float,
+    marginTop: Float,
+    marginRight: Float,
+    marginBottom: Float,
+) = sequence {
+    val widthPx = cmToPixels(width, dpi)
+    val marginLeftPx = cmToPixels(marginLeft, dpi)
+    val marginTopPx = cmToPixels(marginTop, dpi)
+    val marginRightPx = cmToPixels(marginRight, dpi)
+    val marginBottomPx = cmToPixels(marginBottom, dpi)
+    val renderWidthPx = widthPx - marginLeftPx - marginRightPx
     for (i in 0 until pages.length()) {
         val page = pages.getString(i)
-        val bitmap = renderHtml(context, width, dpi, page)
+        val bitmap = renderHtml(context, renderWidthPx, page)
         if (bitmap != null) {
-            yield(bitmap)
+            if (marginLeftPx == 0 && marginTopPx == 0 && marginRightPx == 0 && marginBottomPx == 0) {
+                yield(bitmap)
+            } else {
+                yield(addMargins(bitmap, marginLeftPx, marginTopPx, marginRightPx, marginBottomPx))
+            }
         }
     }
 }

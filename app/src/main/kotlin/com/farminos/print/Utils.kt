@@ -1,8 +1,8 @@
 package com.farminos.print
 
-import android.graphics.Bitmap
-import android.graphics.Color
-import android.graphics.Matrix
+import android.graphics.*
+import android.graphics.Paint.ANTI_ALIAS_FLAG
+import android.graphics.Paint.FILTER_BITMAP_FLAG
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import java.io.*
@@ -98,6 +98,24 @@ fun copyToTmpFile(cacheDir: File, fd: FileDescriptor): ParcelFileDescriptor {
     inputStream.close()
     outputStream.close()
     return ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_ONLY)
+}
+
+fun addMargins(
+    bitmap: Bitmap,
+    marginLeftPx: Int,
+    marginTopPx: Int,
+    marginRightPx: Int,
+    marginBottomPx: Int
+): Bitmap {
+    val result = Bitmap.createBitmap(
+        marginLeftPx + bitmap.width + marginRightPx,
+        marginTopPx + bitmap.height + marginBottomPx,
+        bitmap.config,
+    )
+    result.eraseColor(Color.WHITE)
+    val canvas = Canvas(result)
+    canvas.drawBitmap(bitmap, marginLeftPx.toFloat(), marginTopPx.toFloat(), Paint())
+    return result
 }
 
 private val INCH = 2.54F
