@@ -6,12 +6,9 @@ import android.bluetooth.BluetoothManager
 import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
-import android.util.Log
-import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -135,7 +132,6 @@ class PrintActivity : ComponentActivity() {
         )
 
         if (intent.action.equals(Intent.ACTION_VIEW)) {
-            // TODO: print more than one document
             val content : String? = intent.getStringExtra("content")
             if (content == null) {
                 // TODO: toast
@@ -163,7 +159,6 @@ class PrintActivity : ComponentActivity() {
             // TODO: toast error
             return
         }
-        // TODO: using the suspendCoroutine version of this never renders the WebView so we use the callback version
         val width = printerSettings.width.toDouble()
         val height = printerSettings.height.toDouble()
         val dpi = printerSettings.dpi
@@ -177,7 +172,7 @@ class PrintActivity : ComponentActivity() {
             Driver.ESC_POS -> ::EscPosDriver
             Driver.CPCL -> ::CpclDriver
             // TODO: handle this gracefully, factorize with print service
-            Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
+            else -> throw java.lang.Exception("Unrecognized driver in settings")
         }
         val instance = driverClass(
             ctx,
@@ -247,7 +242,7 @@ private fun renderHtml(context: Context, width: Double, dpi: Int, content: Strin
         .setScreenshotDelay(0)
         .setMeasureDelay(0)
         .build()
-        .bitmap;
+        .bitmap
 }
 
 private fun renderPages(context: Context, width: Double, dpi: Int, pages: JSONArray) = sequence {

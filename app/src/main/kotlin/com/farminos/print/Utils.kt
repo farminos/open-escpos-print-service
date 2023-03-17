@@ -54,7 +54,6 @@ fun convertTransparentToWhite(bitmap: Bitmap) {
 }
 
 fun pdfToBitmaps(document: ParcelFileDescriptor, dpi: Int, w: Double, h: Double) = sequence<Bitmap> {
-    // TODO: On receipt printers: truncate each page once only white or transparent pixels remain.
     val renderer = PdfRenderer(document)
     val pageCount = renderer.pageCount
     for (i in 0 until pageCount) {

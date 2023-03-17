@@ -147,10 +147,6 @@ class FarminOSPrintService : PrintService() {
     val printersMap: MutableMap<PrinterId, PrinterWithSettingsAndInfo> = mutableMapOf()
     private lateinit var session: FarminOSPrinterDiscoverySession
 
-    override fun onCreate() {
-        super.onCreate()
-    }
-
     override fun onCreatePrinterDiscoverySession(): PrinterDiscoverySession {
         session = FarminOSPrinterDiscoverySession(this)
         return session
@@ -187,7 +183,7 @@ class FarminOSPrintService : PrintService() {
         val driverClass = when (printer.settings.driver) {
             Driver.ESC_POS -> ::EscPosDriver
             Driver.CPCL -> ::CpclDriver
-            Driver.UNRECOGNIZED -> throw java.lang.Exception("Unrecognized driver in settings")
+            else -> throw java.lang.Exception("Unrecognized driver in settings")
         }
         val instance = driverClass(
             this,

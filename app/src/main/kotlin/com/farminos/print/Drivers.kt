@@ -26,7 +26,7 @@ abstract class PrinterDriver(
 ) {
     protected var lastTime: Long? = null
 
-    protected fun delayForlength(cm: Double) {
+    protected fun delayForLength(cm: Double) {
         val now = System.currentTimeMillis()
         if (lastTime != null && speedLimit > 0) {
             val elapsed = now - lastTime!!
@@ -76,7 +76,7 @@ class EscPosDriver(
         val heightPx = 128
         bitmapSlices(bitmap, heightPx).forEach {
             commands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
-            delayForlength(pixelsToCm(heightPx, dpi))
+            delayForLength(pixelsToCm(heightPx, dpi))
         }
         if (cut) {
             commands.cutPaper()
@@ -115,7 +115,6 @@ class CpclDriver(
         while (!bluetoothPort.isConnected) {
             Thread.sleep(100)
         }
-        // TODO: wait until it is actually connected
         requestHandlerThread = Thread(RequestHandler())
         requestHandlerThread.start()
         cpclPrinter = CPCLPrinter()
@@ -134,7 +133,7 @@ class CpclDriver(
         cpclPrinter.setForm(0, dpi, dpi, (height * 100).toInt(), 1)
         cpclPrinter.printBitmap(bitmap, 0, 0)
         cpclPrinter.printForm()
-        delayForlength(height)
+        delayForLength(height)
     }
 
     override fun disconnect() {
