@@ -61,7 +61,10 @@ val Context.settingsDataStore: DataStore<Settings> by dataStore(
     serializer = SettingsSerializer
 )
 
-data class Printer(val address: String, val name: String)
+enum class PrinterConnection {
+    BLUETOOTH, WIFI
+}
+data class Printer(val address: String, val name: String, val connection: PrinterConnection)
 
 @Suppress("DEPRECATION")
 class PrintActivity : ComponentActivity() {
@@ -129,7 +132,7 @@ class PrintActivity : ComponentActivity() {
         printers.update {
             bluetoothAdapter.bondedDevices
                 .filter { it.bluetoothClass.deviceClass == 1664 }  // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
-                .map { Printer(address = it.address, name = it.name) }
+                .map { Printer(address = it.address, name = it.name, connection = PrinterConnection.BLUETOOTH) }
         }
         WirelessDiscovery.discoverService(this@PrintActivity)
     }
@@ -254,6 +257,7 @@ private fun renderPages(context: Context, width: Double, dpi: Int, pages: JSONAr
     }
 }
 
+// TODO: add timeout-ing so that it can be used in Service.listPrinters alongside bluetooth discovery
 object WirelessDiscovery {
     private const val SERVICE_TYPE = "_ipp._tcp"
     fun discoverService(context: PrintActivity) {
@@ -294,7 +298,7 @@ object WirelessDiscovery {
                             val address = serviceInfo.host.hostAddress!!
                             val port = serviceInfo.port
                             context.printers.update {
-                                it + Printer(address, name)
+                                it + Printer(address, name, connection = PrinterConnection.WIFI)
                             }
                         }
                     }
