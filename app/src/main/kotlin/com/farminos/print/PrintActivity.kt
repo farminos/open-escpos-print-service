@@ -162,7 +162,7 @@ class PrintActivity : ComponentActivity() {
         val width = printerSettings.width.toDouble()
         val height = printerSettings.height.toDouble()
         val dpi = printerSettings.dpi
-        val marginMils = printerSettings.marginMils
+        val marginCm = printerSettings.marginCm
         val cut = printerSettings.cut
         val driver = printerSettings.driver
         val speedLimit = printerSettings.speedLimit

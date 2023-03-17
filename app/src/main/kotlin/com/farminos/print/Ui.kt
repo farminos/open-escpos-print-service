@@ -278,14 +278,14 @@ fun PrinterCard(
                     },
                 )
                 LabelledTextField(
-                    label = "Margins (mils)",
-                    value = settings.marginMils.toString(),
+                    label = "Margins (cm)",
+                    value = settings.marginCm.toString(),
                     transform = {mils ->
-                        mils.toIntOrNull()
+                        mils.toFloatOrNull()
                     },
-                    onValueChange = {mils ->
+                    onValueChange = {cm ->
                         context.updatePrinterSetting(address = printer.address) {
-                            it.setMarginMils(mils)
+                            it.setMarginCm(cm)
                         }
                     },
                 )
@@ -388,7 +388,7 @@ val DEFAULT_PRINTER_SETTINGS: PrinterSettings = PrinterSettings.newBuilder()
     .setDpi(203)
     .setWidth(5.0F)
     .setHeight(8.0F)
-    .setMarginMils(0)
+    .setMarginCm(0.0F)
     .setCut(true)
     .setSpeedLimit(2.0F)
     .setCutDelay(0.0F)
