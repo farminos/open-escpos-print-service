@@ -14,10 +14,13 @@ message PrinterSettings {
   int32 dpi = 3;
   float width = 4;
   float height = 5;
-  float margin_cm = 6;
+  float margin_left = 6;
   bool cut = 7;
   float speed_limit = 8;
   float cut_delay = 9;
+  float margin_right = 10;
+  float margin_top = 11;
+  float margin_bottom = 12;
 }
 
 message Settings {
