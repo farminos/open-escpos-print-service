@@ -5,8 +5,7 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
-import java.io.ByteArrayInputStream
-import java.io.IOException
+import java.io.*
 import java.util.zip.GZIPInputStream
 import kotlin.math.ceil
 
@@ -87,16 +86,26 @@ fun bitmapSlices(bitmap: Bitmap, step: Int) = sequence<Bitmap> {
     }
 }
 
+fun copyToTmpFile(cacheDir: File, fd: FileDescriptor): ParcelFileDescriptor {
+    val outputFile = File.createTempFile(System.currentTimeMillis().toString(), null, cacheDir)
+    val outputStream = FileOutputStream(outputFile)
+    val inputStream = FileInputStream(fd)
+    val buffer = ByteArray(8192)
+    var length: Int
+    while (inputStream.read(buffer).also { length = it } > 0) {
+        outputStream.write(buffer, 0, length)
+    }
+    inputStream.close()
+    outputStream.close()
+    return ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_ONLY)
+}
+
 private fun cmToDots(cm: Double, dpi: Int): Int {
     return ceil((cm / 2.54) * dpi).toInt()
 }
 
 fun cmToMils(cm: Double): Int {
     return ceil(cm / 2.54 * 1000).toInt()
-}
-
-fun milsToCm(mils: Int): Double {
-    return mils / 1000.0 * 2.54
 }
 
 fun cmToPixels(cm: Double, dpi: Int): Int {

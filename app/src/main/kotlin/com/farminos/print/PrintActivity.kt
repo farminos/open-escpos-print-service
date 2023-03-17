@@ -160,13 +160,8 @@ class PrintActivity : ComponentActivity() {
             return
         }
         val width = printerSettings.width.toDouble()
-        val height = printerSettings.height.toDouble()
         val dpi = printerSettings.dpi
-        val marginCm = printerSettings.marginCm
-        val cut = printerSettings.cut
         val driver = printerSettings.driver
-        val speedLimit = printerSettings.speedLimit
-        val cutDelay = printerSettings.cutDelay
         val ctx = this
         val driverClass = when(driver) {
             Driver.ESC_POS -> ::EscPosDriver
@@ -174,16 +169,7 @@ class PrintActivity : ComponentActivity() {
             // TODO: handle this gracefully, factorize with print service
             else -> throw java.lang.Exception("Unrecognized driver in settings")
         }
-        val instance = driverClass(
-            ctx,
-            defaultPrinter,
-            width,
-            height,
-            dpi,
-            cut,
-            speedLimit,
-            cutDelay,
-        )
+        val instance = driverClass(ctx, defaultPrinter, printerSettings)
         renderPages(ctx, width, dpi, pages).forEach {
             instance.printBitmap(it)
         }

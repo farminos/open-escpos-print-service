@@ -3,7 +3,6 @@ package com.farminos.print
 import android.Manifest
 import android.bluetooth.BluetoothManager
 import android.content.pm.PackageManager
-import android.os.ParcelFileDescriptor
 import android.print.PrintAttributes
 import android.print.PrintAttributes.Margins
 import android.print.PrintAttributes.Resolution
@@ -18,7 +17,6 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
-import java.io.*
 import java.text.DecimalFormat
 
 class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService) : PrinterDiscoverySession() {
@@ -91,20 +89,6 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
     override fun onStopPrinterStateTracking(printerId: PrinterId) {}
 
     override fun onDestroy() {}
-}
-
-private fun copyToTmpFile(cacheDir: File, fd: FileDescriptor): ParcelFileDescriptor {
-    val outputFile = File.createTempFile(System.currentTimeMillis().toString(), null, cacheDir)
-    val outputStream = FileOutputStream(outputFile)
-    val inputStream = FileInputStream(fd)
-    val buffer = ByteArray(8192)
-    var length: Int
-    while (inputStream.read(buffer).also { length = it } > 0) {
-        outputStream.write(buffer, 0, length)
-    }
-    inputStream.close()
-    outputStream.close()
-    return ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_ONLY)
 }
 
 data class PrinterWithSettingsAndInfo(val printer: Printer, val settings: PrinterSettings, val info: PrinterInfo)
@@ -186,16 +170,7 @@ class FarminOSPrintService : PrintService() {
             Driver.CPCL -> ::CpclDriver
             else -> throw java.lang.Exception("Unrecognized driver in settings")
         }
-        val instance = driverClass(
-            this,
-            printer.printer.address,
-            milsToCm(mediaSize.widthMils),
-            milsToCm(mediaSize.heightMils),
-            resolution.horizontalDpi,
-            printer.settings.cut,
-            printer.settings.speedLimit,
-            printer.settings.cutDelay,
-        )
+        val instance = driverClass(this, printer.printer.address, printer.settings)
         instance.printDocument(copy)
         // TODO: move this somewhere else
         instance.disconnect()

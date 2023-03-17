@@ -16,21 +16,15 @@ import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
 abstract class PrinterDriver(
     context: Context,
     address: String,
-    // TODO: pass settings instead
-    protected val width: Double,
-    protected val height: Double,
-    protected val dpi: Int,
-    protected val cut: Boolean,
-    private val speedLimit: Float, // cm/s
-    protected val cutDelay: Float, // s
+    protected val settings: PrinterSettings,
 ) {
     protected var lastTime: Long? = null
 
     protected fun delayForLength(cm: Double) {
         val now = System.currentTimeMillis()
-        if (lastTime != null && speedLimit > 0) {
+        if (lastTime != null && settings.speedLimit > 0) {
             val elapsed = now - lastTime!!
-            val duration = (cm / speedLimit * 1000).toLong()
+            val duration = (cm / settings.speedLimit * 1000).toLong()
             Thread.sleep(Math.max(0, duration - elapsed))
         }
         lastTime = now
@@ -41,7 +35,7 @@ abstract class PrinterDriver(
     abstract fun disconnect()
 
     fun printDocument(document: ParcelFileDescriptor) {
-        pdfToBitmaps(document, dpi, width, height).forEach { page ->
+        pdfToBitmaps(document, settings.dpi, settings.width.toDouble(), settings.height.toDouble() ).forEach { page ->
             printBitmap(page)
         }
         document.close()
@@ -51,13 +45,8 @@ abstract class PrinterDriver(
 class EscPosDriver(
     context: Context,
     address: String,
-    width: Double,
-    height: Double,
-    dpi: Int,
-    cut: Boolean,
-    speedLimit: Float,
-    cutDelay: Float,
-): PrinterDriver(context, address, width, height, dpi, cut, speedLimit, cutDelay) {
+    settings: PrinterSettings,
+): PrinterDriver(context, address, settings) {
     private val commands: EscPosPrinterCommands
     init {
         val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(
@@ -76,12 +65,12 @@ class EscPosDriver(
         val heightPx = 128
         bitmapSlices(bitmap, heightPx).forEach {
             commands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
-            delayForLength(pixelsToCm(heightPx, dpi))
+            delayForLength(pixelsToCm(heightPx, settings.dpi))
         }
-        if (cut) {
+        if (settings.cut) {
             commands.cutPaper()
-            if (cutDelay > 0) {
-               Thread.sleep((cutDelay * 1000).toLong())
+            if (settings.cutDelay > 0) {
+               Thread.sleep((settings.cutDelay * 1000).toLong())
                 // Reset speed limit timer
                lastTime = System.currentTimeMillis()
             }
@@ -99,13 +88,8 @@ class EscPosDriver(
 class CpclDriver(
     context: Context,
     address: String,
-    width: Double,
-    height: Double,
-    dpi: Int,
-    cut: Boolean,
-    speedLimit: Float,
-    cutDelay: Float,
-): PrinterDriver(context, address, width, height, dpi, cut, speedLimit, cutDelay) {
+    settings: PrinterSettings,
+): PrinterDriver(context, address, settings) {
     private val bluetoothPort: BluetoothPort = BluetoothPort.getInstance()
     private val requestHandlerThread: Thread
     private val cpclPrinter: CPCLPrinter
@@ -130,10 +114,10 @@ class CpclDriver(
     }
 
     override fun printBitmap(bitmap: Bitmap) {
-        cpclPrinter.setForm(0, dpi, dpi, (height * 100).toInt(), 1)
+        cpclPrinter.setForm(0, settings.dpi, settings.dpi, (settings.height * 100).toInt(), 1)
         cpclPrinter.printBitmap(bitmap, 0, 0)
         cpclPrinter.printForm()
-        delayForLength(height)
+        delayForLength(settings.height.toDouble())
     }
 
     override fun disconnect() {
