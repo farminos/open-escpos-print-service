@@ -96,7 +96,7 @@ fun cmToMils(cm: Double): Int {
 }
 
 fun milsToCm(mils: Int): Double {
-    return mils / 1000 * 2.54
+    return mils / 1000.0 * 2.54
 }
 
 fun cmToPixels(cm: Double, dpi: Int): Int {
