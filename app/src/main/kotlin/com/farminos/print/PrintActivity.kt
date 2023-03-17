@@ -159,7 +159,7 @@ class PrintActivity : ComponentActivity() {
             // TODO: toast error
             return
         }
-        val width = printerSettings.width.toDouble()
+        val width = printerSettings.width
         val dpi = printerSettings.dpi
         val driver = printerSettings.driver
         val ctx = this
@@ -220,7 +220,7 @@ class PrintActivity : ComponentActivity() {
     }
 }
 
-private fun renderHtml(context: Context, width: Double, dpi: Int, content: String): Bitmap? {
+private fun renderHtml(context: Context, width: Float, dpi: Int, content: String): Bitmap? {
     return Html2Bitmap.Builder()
         .setContext(context)
         .setBitmapWidth(cmToPixels(width, dpi))
@@ -231,7 +231,7 @@ private fun renderHtml(context: Context, width: Double, dpi: Int, content: Strin
         .bitmap
 }
 
-private fun renderPages(context: Context, width: Double, dpi: Int, pages: JSONArray) = sequence {
+private fun renderPages(context: Context, width: Float, dpi: Int, pages: JSONArray) = sequence {
     for (i in 0 until pages.length()) {
         val page = pages.getString(i)
         val bitmap = renderHtml(context, width, dpi, page)

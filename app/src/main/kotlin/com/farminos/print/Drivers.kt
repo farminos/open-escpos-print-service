@@ -20,7 +20,7 @@ abstract class PrinterDriver(
 ) {
     protected var lastTime: Long? = null
 
-    protected fun delayForLength(cm: Double) {
+    protected fun delayForLength(cm: Float) {
         val now = System.currentTimeMillis()
         if (lastTime != null && settings.speedLimit > 0) {
             val elapsed = now - lastTime!!
@@ -35,7 +35,7 @@ abstract class PrinterDriver(
     abstract fun disconnect()
 
     fun printDocument(document: ParcelFileDescriptor) {
-        pdfToBitmaps(document, settings.dpi, settings.width.toDouble(), settings.height.toDouble() ).forEach { page ->
+        pdfToBitmaps(document, settings.dpi, settings.width, settings.height ).forEach { page ->
             printBitmap(page)
         }
         document.close()
@@ -117,7 +117,7 @@ class CpclDriver(
         cpclPrinter.setForm(0, settings.dpi, settings.dpi, (settings.height * 100).toInt(), 1)
         cpclPrinter.printBitmap(bitmap, 0, 0)
         cpclPrinter.printForm()
-        delayForLength(settings.height.toDouble())
+        delayForLength(settings.height)
     }
 
     override fun disconnect() {
