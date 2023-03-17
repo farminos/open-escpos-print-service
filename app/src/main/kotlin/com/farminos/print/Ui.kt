@@ -278,14 +278,50 @@ fun PrinterCard(
                     },
                 )
                 LabelledTextField(
-                    label = "Margins (cm)",
-                    value = settings.marginCm.toString(),
-                    transform = {mils ->
-                        mils.toFloatOrNull()
+                    label = "Left margin (cm)",
+                    value = settings.marginLeft.toString(),
+                    transform = {cm ->
+                        cm.toFloatOrNull()
                     },
                     onValueChange = {cm ->
                         context.updatePrinterSetting(address = printer.address) {
-                            it.setMarginCm(cm)
+                            it.setMarginLeft(cm)
+                        }
+                    },
+                )
+                LabelledTextField(
+                    label = "Top margin (cm)",
+                    value = settings.marginTop.toString(),
+                    transform = {cm ->
+                        cm.toFloatOrNull()
+                    },
+                    onValueChange = {cm ->
+                        context.updatePrinterSetting(address = printer.address) {
+                            it.setMarginTop(cm)
+                        }
+                    },
+                )
+                LabelledTextField(
+                    label = "Right margin (cm)",
+                    value = settings.marginRight.toString(),
+                    transform = {cm ->
+                        cm.toFloatOrNull()
+                    },
+                    onValueChange = {cm ->
+                        context.updatePrinterSetting(address = printer.address) {
+                            it.setMarginRight(cm)
+                        }
+                    },
+                )
+                LabelledTextField(
+                    label = "Bottom margin (cm)",
+                    value = settings.marginBottom.toString(),
+                    transform = {cm ->
+                        cm.toFloatOrNull()
+                    },
+                    onValueChange = {cm ->
+                        context.updatePrinterSetting(address = printer.address) {
+                            it.setMarginBottom(cm)
                         }
                     },
                 )
@@ -388,7 +424,10 @@ val DEFAULT_PRINTER_SETTINGS: PrinterSettings = PrinterSettings.newBuilder()
     .setDpi(203)
     .setWidth(5.0F)
     .setHeight(8.0F)
-    .setMarginCm(0.0F)
+    .setMarginLeft(0.0F)
+    .setMarginTop(0.0F)
+    .setMarginRight(0.0F)
+    .setMarginBottom(0.0F)
     .setCut(true)
     .setSpeedLimit(2.0F)
     .setCutDelay(0.0F)

@@ -95,10 +95,8 @@ data class PrinterWithSettingsAndInfo(val printer: Printer, val settings: Printe
 
 fun buildPrinterInfo(id: PrinterId, name: String, settings: PrinterSettings): PrinterInfo {
     val dpi = settings.dpi
-    val width = settings.width.toDouble()
-    val height = settings.height.toDouble()
-    val marginCm = settings.marginCm
-    val marginMils = cmToMils(marginCm.toDouble())
+    val width = settings.width
+    val height = settings.height
     val df = DecimalFormat("#.#")
     val mediaSizeLabel = "${df.format(width)}x${df.format(height)}cm"
     return PrinterInfo.Builder(id, name, PrinterInfo.STATUS_IDLE)
@@ -122,7 +120,12 @@ fun buildPrinterInfo(id: PrinterId, name: String, settings: PrinterSettings): Pr
                     PrintAttributes.COLOR_MODE_COLOR
                 )
                 .setMinMargins(
-                    Margins(marginMils, marginMils, marginMils, marginMils)
+                    Margins(
+                        cmToMils(settings.marginLeft),
+                        cmToMils(settings.marginTop),
+                        cmToMils(settings.marginRight),
+                        cmToMils(settings.marginBottom),
+                    )
                 )
                 .build()
         ).build()
