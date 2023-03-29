@@ -60,22 +60,21 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
         ) {
             return listOf()
         }
-        val printers = bluetoothAdapter.bondedDevices
-            .filter { it.bluetoothClass.deviceClass == 1664 }  // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
-            .sortedBy { if (it.address == settings.defaultPrinter) 0 else 1 }
-            .mapNotNull {
-                val printerSettings = settings.printersMap[it.address]
-                if (printerSettings == null || !printerSettings.enabled || printerSettings.dpi <= 0) {
-                    null
-                } else {
-                    val id = context.generatePrinterId(it.address)
-                    PrinterWithSettingsAndInfo(
-                        printer = Printer(address = it.address, name = it.name),
-                        settings = printerSettings,
-                        info = buildPrinterInfo(id, it.name, printerSettings)
-                    )
-                }
+        val printers = settings.printersMap
+            .filterValues { it.enabled }
+            .map { (uuid, printerSettings) ->
+                val id = context.generatePrinterId(uuid)
+                val btPrinter = bluetoothAdapter.bondedDevices.find { it.address == uuid }
+                val address = btPrinter?.address ?: uuid
+                val name = btPrinter?.name ?: printerSettings.name
+                PrinterWithSettingsAndInfo(
+                    printer = Printer(address = address, name = name),
+                    settings = printerSettings,
+                    info = buildPrinterInfo(id, name, printerSettings),
+                    isDefault = uuid == settings.defaultPrinter,
+                )
             }
+            .sortedBy { if (it.isDefault) 0 else 1 }
         return printers
     }
     override fun onStopPrinterDiscovery() {
@@ -91,7 +90,12 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
     override fun onDestroy() {}
 }
 
-data class PrinterWithSettingsAndInfo(val printer: Printer, val settings: PrinterSettings, val info: PrinterInfo)
+data class PrinterWithSettingsAndInfo(
+    val printer: Printer,
+    val settings: PrinterSettings,
+    val info: PrinterInfo,
+    val isDefault: Boolean,
+)
 
 fun buildPrinterInfo(id: PrinterId, name: String, settings: PrinterSettings): PrinterInfo {
     val dpi = settings.dpi
@@ -156,22 +160,22 @@ class FarminOSPrintService : PrintService() {
         val printer = printersMap[printerId]
         val document = printJob.document.data
         if (printer == null) {
-            throw java.lang.Exception("No printer found")
+            throw Exception("No printer found")
         }
         if (document == null) {
-            throw java.lang.Exception("No document found")
+            throw Exception("No document found")
         }
         // we copy the document in the main thread, otherwise you get: java.lang.IllegalAccessError
         val copy = copyToTmpFile(this.cacheDir, document.fileDescriptor)
         val mediaSize = printJob.info.attributes.mediaSize
         val resolution = printJob.info.attributes.resolution
         if (mediaSize == null || resolution == null) {
-            throw java.lang.Exception("No media size or resolution in print job info")
+            throw Exception("No media size or resolution in print job info")
         }
         val driverClass = when (printer.settings.driver) {
             Driver.ESC_POS -> ::EscPosDriver
             Driver.CPCL -> ::CpclDriver
-            else -> throw java.lang.Exception("Unrecognized driver in settings")
+            else -> throw Exception("Unrecognized driver in settings")
         }
         val instance = driverClass(this, printer.printer.address, printer.settings)
         instance.printDocument(copy)

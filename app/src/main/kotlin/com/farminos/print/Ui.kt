@@ -164,6 +164,7 @@ fun <T> LabelledTextField(
     value: String,
     onValueChange: (T) -> Unit,
     transform: (String) -> T?,
+    keyboardType: KeyboardType = KeyboardType.Number,
 ) {
     var valueState by remember { mutableStateOf(value) }
     Row(
@@ -173,7 +174,7 @@ fun <T> LabelledTextField(
     ) {
         Text(text = label)
         TextField(
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             value = valueState,
             onValueChange = {
                 valueState = it
@@ -190,15 +191,21 @@ fun <T> LabelledTextField(
 @Composable
 fun PrinterCard(
     context: PrintActivity,
-    printer: Printer,
+    uuid: String,
+    name: String,
     settings: PrinterSettings,
     defaultPrinterAddress: String,
 ) {
     ExpandableCard(
         header = {
             Column {
-                Text(text = printer.name)
-                Text(text = printer.address, color = MaterialTheme.colorScheme.secondary)
+                Text(
+                    text = name,
+                )
+                Text(
+                    text = uuid,
+                    color = MaterialTheme.colorScheme.secondary,
+                )
             }
         },
         content = {
@@ -207,10 +214,10 @@ fun PrinterCard(
                     label = "Enabled",
                     checked = settings.enabled,
                     onCheckedChange = {enabled ->
-                        context.updatePrinterSetting(address = printer.address) {
+                        context.updatePrinterSetting(uuid = uuid) {
                             it.setEnabled(enabled)
                         }
-                        if (!enabled && printer.address === defaultPrinterAddress) {
+                        if (!enabled && uuid === defaultPrinterAddress) {
                             // disabled printer can't be set as default
                             context.updateDefaultPrinter("")
                         }
@@ -218,17 +225,54 @@ fun PrinterCard(
                 )
                 LabelledSwitch(
                     label = "Default printer",
-                    checked = printer.address == defaultPrinterAddress,
+                    checked = uuid == defaultPrinterAddress,
                     onCheckedChange = {isDefault ->
                         if (isDefault) {
                             // disabled printer can't be set as default
-                            context.updatePrinterSetting(address = printer.address) {
+                            context.updatePrinterSetting(uuid = uuid) {
                                 it.setEnabled(true)
                             }
                         }
-                        context.updateDefaultPrinter(address = if (isDefault) printer.address else "")
+                        context.updateDefaultPrinter(address = if (isDefault) uuid else "")
                     },
                 )
+                if (settings.`interface` == Interface.TCP_IP) {
+                    LabelledTextField(
+                        label = "Name",
+                        value = settings.name,
+                        transform = { name ->
+                            name
+                        },
+                        onValueChange = { name ->
+                            context.updatePrinterSetting(uuid = uuid) {
+                                it.setName(name)
+                            }
+                        },
+                        keyboardType = KeyboardType.Text,
+                    )
+                    LabelledTextField(
+                        label = "Address and port",
+                        value = settings.address,
+                        transform = { address ->
+                            address
+                        },
+                        onValueChange = { address ->
+                            context.updatePrinterSetting(uuid = uuid) {
+                                it.setAddress(address)
+                            }
+                        },
+                        keyboardType = KeyboardType.Text,
+                    )
+                    Button(
+                        onClick = {
+                            context.deletePrinterSetting(uuid)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.elevatedButtonColors(),
+                    ) {
+                        Text(text = "Delete this printer")
+                    }
+                }
                 MenuSelect(
                     options = arrayOf(
                         Option(value = Driver.ESC_POS_VALUE, label = "ESC / POS"),
@@ -236,7 +280,7 @@ fun PrinterCard(
                     ),
                     selectedValue = settings.driverValue,
                     onSelect = {value ->
-                        context.updatePrinterSetting(address = printer.address) {
+                        context.updatePrinterSetting(uuid = uuid) {
                             it.setDriverValue(value)
                         }
                     }
@@ -248,7 +292,7 @@ fun PrinterCard(
                         dpi.toIntOrNull()
                     },
                     onValueChange = {dpi ->
-                        context.updatePrinterSetting(address = printer.address) {
+                        context.updatePrinterSetting(uuid = uuid) {
                             it.setDpi(dpi)
                         }
                     },
@@ -260,7 +304,7 @@ fun PrinterCard(
                         value.toFloatOrNull()
                     },
                     onValueChange = {width ->
-                        context.updatePrinterSetting(address = printer.address) {
+                        context.updatePrinterSetting(uuid = uuid) {
                             it.setWidth(width)
                         }
                     },
@@ -272,7 +316,7 @@ fun PrinterCard(
                         value.toFloatOrNull()
                     },
                     onValueChange = {height ->
-                        context.updatePrinterSetting(address = printer.address) {
+                        context.updatePrinterSetting(uuid = uuid) {
                             it.setHeight(height)
                         }
                     },
@@ -284,7 +328,7 @@ fun PrinterCard(
                         cm.toFloatOrNull()
                     },
                     onValueChange = {cm ->
-                        context.updatePrinterSetting(address = printer.address) {
+                        context.updatePrinterSetting(uuid = uuid) {
                             it.setMarginLeft(cm)
                         }
                     },
@@ -296,7 +340,7 @@ fun PrinterCard(
                         cm.toFloatOrNull()
                     },
                     onValueChange = {cm ->
-                        context.updatePrinterSetting(address = printer.address) {
+                        context.updatePrinterSetting(uuid = uuid) {
                             it.setMarginTop(cm)
                         }
                     },
@@ -308,7 +352,7 @@ fun PrinterCard(
                         cm.toFloatOrNull()
                     },
                     onValueChange = {cm ->
-                        context.updatePrinterSetting(address = printer.address) {
+                        context.updatePrinterSetting(uuid = uuid) {
                             it.setMarginRight(cm)
                         }
                     },
@@ -320,7 +364,7 @@ fun PrinterCard(
                         cm.toFloatOrNull()
                     },
                     onValueChange = {cm ->
-                        context.updatePrinterSetting(address = printer.address) {
+                        context.updatePrinterSetting(uuid = uuid) {
                             it.setMarginBottom(cm)
                         }
                     },
@@ -332,7 +376,7 @@ fun PrinterCard(
                         speedLimit.toFloatOrNull()
                     },
                     onValueChange = {speedLimit ->
-                        context.updatePrinterSetting(address = printer.address) {
+                        context.updatePrinterSetting(uuid = uuid) {
                             it.setSpeedLimit(speedLimit)
                         }
                     },
@@ -344,7 +388,7 @@ fun PrinterCard(
                         cutDelay.toFloatOrNull()
                     },
                     onValueChange = {cutDelay ->
-                        context.updatePrinterSetting(address = printer.address) {
+                        context.updatePrinterSetting(uuid = uuid) {
                             it.setCutDelay(cutDelay)
                         }
                     },
@@ -353,7 +397,7 @@ fun PrinterCard(
                     label = "Cut after each page",
                     checked = settings.cut,
                     onCheckedChange = {cut ->
-                        context.updatePrinterSetting(address = printer.address) {
+                        context.updatePrinterSetting(uuid = uuid) {
                             it.setCut(cut)
                         }
                     },
@@ -382,6 +426,13 @@ fun SettingsScreen(
                     rememberScrollState(),
                 )
             ) {
+                Text(
+                    "Bluetooth pritners",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp)
+                )
                 if (!bluetoothAllowed) {
                     Button(
                         onClick = {
@@ -404,14 +455,42 @@ fun SettingsScreen(
                 } else {
                     printers
                         .forEach {
-                            val printerSettings = settings.printersMap[it.address] ?: DEFAULT_PRINTER_SETTINGS
+                            val printerSettings =
+                                settings.printersMap[it.address] ?: DEFAULT_PRINTER_SETTINGS.toBuilder().setInterface(Interface.BLUETOOTH).build()
                             PrinterCard(
                                 context = context,
-                                printer = it,
+                                uuid = it.address,
+                                name = it.name,
                                 settings = printerSettings,
                                 defaultPrinterAddress = settings.defaultPrinter,
                             )
                         }
+                }
+                Text(
+                    "Network printers",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp)
+                )
+                val btAddresses = printers.map { it.address }
+                settings.printersMap.filter { !btAddresses.contains(it.key) }
+                    .forEach { (uuid, printerSettings) ->
+                        PrinterCard(
+                            context = context,
+                            uuid = uuid,
+                            name = printerSettings.name,
+                            settings = printerSettings,
+                            defaultPrinterAddress = settings.defaultPrinter,
+                        )
+                    }
+                Button(
+                    onClick = {
+                        context.addPrinterSetting()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = "Add a network printer")
                 }
             }
         }

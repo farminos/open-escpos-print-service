@@ -1,8 +1,6 @@
 package com.farminos.print
 
 import android.graphics.*
-import android.graphics.Paint.ANTI_ALIAS_FLAG
-import android.graphics.Paint.FILTER_BITMAP_FLAG
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import java.io.*
@@ -118,7 +116,7 @@ fun addMargins(
     return result
 }
 
-private val INCH = 2.54F
+private const val INCH = 2.54F
 
 private fun cmToDots(cm: Float, dpi: Int): Int {
     return ceil((cm / INCH) * dpi).toInt()

@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import java.io.*
+import java.util.*
 
 
 object SettingsSerializer : Serializer<Settings> {
@@ -83,12 +84,47 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
-    fun updatePrinterSetting(address: String, updater: (ps: PrinterSettings.Builder) -> PrinterSettings.Builder) {
+    fun updatePrinterSetting(uuid: String, updater: (ps: PrinterSettings.Builder) -> PrinterSettings.Builder) {
         appCoroutineScope.launch {
             this@PrintActivity.settingsDataStore.updateData { currentSettings ->
                 val builder = currentSettings.toBuilder()
-                val printerBuilder = (builder.printersMap[address] ?: PrinterSettings.getDefaultInstance()).toBuilder()
-                builder.putPrinters(address, updater(printerBuilder).build())
+                val printerBuilder = (builder.printersMap[uuid] ?: PrinterSettings.getDefaultInstance()).toBuilder()
+                builder.putPrinters(uuid, updater(printerBuilder).build())
+                return@updateData builder.build()
+            }
+        }
+    }
+
+    //fun updateIpPrinterSetting(uuid: String, updater: (ps: PrinterSettings.Builder) -> PrinterSettings.Builder) {
+    //    appCoroutineScope.launch {
+    //        this@PrintActivity.settingsDataStore.updateData { currentSettings ->
+    //            val builder = currentSettings.toBuilder()
+    //            val printerBuilder = (builder.ipPrintersMap[uuid] ?: PrinterSettings.getDefaultInstance()).toBuilder()
+    //            builder.putPrinters(uuid, updater(printerBuilder).build())
+    //            return@updateData builder.build()
+    //        }
+    //    }
+    //}
+
+    fun addPrinterSetting() {
+        appCoroutineScope.launch {
+            this@PrintActivity.settingsDataStore.updateData { currentSettings ->
+                val uuid = UUID.randomUUID().toString()
+                val builder = currentSettings.toBuilder()
+                builder.putPrinters(
+                    uuid,
+                    DEFAULT_PRINTER_SETTINGS.toBuilder().setInterface(Interface.TCP_IP).build()
+                )
+                return@updateData builder.build()
+            }
+        }
+    }
+
+    fun deletePrinterSetting(uuid: String) {
+        appCoroutineScope.launch {
+            this@PrintActivity.settingsDataStore.updateData { currentSettings ->
+                val builder = currentSettings.toBuilder()
+                builder.removePrinters(uuid)
                 return@updateData builder.build()
             }
         }

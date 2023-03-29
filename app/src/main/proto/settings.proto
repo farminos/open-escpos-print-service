@@ -8,6 +8,11 @@ enum Driver {
   CPCL = 1;
 }
 
+enum Interface {
+  BLUETOOTH = 0;
+  TCP_IP = 1;
+}
+
 message PrinterSettings {
   bool enabled = 1;
   Driver driver = 2;
@@ -21,9 +26,13 @@ message PrinterSettings {
   float margin_right = 10;
   float margin_top = 11;
   float margin_bottom = 12;
+  string address = 13; // only for tcp/ip printers
+  string name = 14; // only for tcp/ip printers
+  Interface interface = 15;
 }
 
 message Settings {
   string default_printer = 1;
+  // bluetooth printers: mac address -> settings; ip printers: uuid -> settings
   map<string, PrinterSettings> printers = 2;
 }

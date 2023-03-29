@@ -11,6 +11,7 @@ import com.citizen.port.android.BluetoothPort
 import com.citizen.request.android.RequestHandler
 import com.dantsu.escposprinter.EscPosPrinterCommands
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
+import com.dantsu.escposprinter.connection.tcp.TcpConnection
 
 // TODO: make PrinterDriver Closeable
 abstract class PrinterDriver(
@@ -49,13 +50,24 @@ class EscPosDriver(
 ): PrinterDriver(context, address, settings) {
     private val commands: EscPosPrinterCommands
     init {
-        val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(
-            context,
-            BluetoothManager::class.java
-        )!!
-        val bluetoothAdapter = bluetoothManager.adapter
-        val device = bluetoothAdapter.getRemoteDevice(address)
-        val connection = BluetoothConnection(device)
+        val connection = when (settings.`interface`) {
+            Interface.BLUETOOTH -> {
+                val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(
+                    context,
+                    BluetoothManager::class.java
+                )!!
+                val bluetoothAdapter = bluetoothManager.adapter
+                val device = bluetoothAdapter.getRemoteDevice(address)
+                BluetoothConnection(device)
+            }
+            Interface.TCP_IP -> {
+                val addressAndPort = settings.address.split(":")
+                TcpConnection(addressAndPort[0], addressAndPort[1].toInt())
+            }
+            else -> {
+                throw Exception("Unknown interface")
+            }
+        }
         commands = EscPosPrinterCommands(connection)
         commands.connect()
         commands.reset()
