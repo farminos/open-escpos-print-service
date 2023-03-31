@@ -13,7 +13,7 @@ You can connect printers through Bluetooth or a TCP socket.
  * pair your Bluetooth printers with your phone;
  * open the app;
  * the Bluetooth printers should be there, configure the paper size;
- * for TCP printers, just add an adress and a port separated by a ":" and configure the paper size;
+ * for TCP printers, just add an address and a port separated by a ":" and configure the paper size;
  * you should now be able to print from any Android app (Chromium, image gallery, etc...).
 
 ## Using through an intent
@@ -27,7 +27,7 @@ It looks like this:
 `intent://#Intent;scheme=print-intent;S.content=H4sIAAAAAAAA...XXXXX;end`
 
 ## Details
-If you have an ESCP/POS label printer, enable the `Cut after each page` switch, this will make the printer go to the satrt of the next label (at least on the Netum ones).
+If you have an ESC/POS label printer, enable the `Cut after each page` switch, this will make the printer go to the start of the next label (at least on the Netum ones).
 There are speed limits and delays that you can set in each printer settings; if your printer works well, leave these at 0.
 
 ## TODO
