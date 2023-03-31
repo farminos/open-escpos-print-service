@@ -434,7 +434,7 @@ fun SettingsScreen(
                 )
             ) {
                 Text(
-                    "Bluetooth pritners",
+                    "Bluetooth printers",
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier
                         .fillMaxWidth()
