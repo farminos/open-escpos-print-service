@@ -177,7 +177,7 @@ class FarminOSPrintService : PrintService() {
             Driver.CPCL -> ::CpclDriver
             else -> throw Exception("Unrecognized driver in settings")
         }
-        val instance = driverClass(this, printer.printer.address, printer.settings)
+        val instance = driverClass(this, printer.settings)
         instance.printDocument(copy)
         // TODO: move this somewhere else
         instance.disconnect()

@@ -72,7 +72,6 @@ class PrintActivity : ComponentActivity() {
     }
     var bluetoothAllowed: MutableStateFlow<Boolean> = MutableStateFlow(false)
     var bluetoothEnabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    var printers: MutableStateFlow<List<Printer>> = MutableStateFlow(listOf())
 
     fun updateDefaultPrinter(address: String) {
         appCoroutineScope.launch {
@@ -94,17 +93,6 @@ class PrintActivity : ComponentActivity() {
             }
         }
     }
-
-    //fun updateIpPrinterSetting(uuid: String, updater: (ps: PrinterSettings.Builder) -> PrinterSettings.Builder) {
-    //    appCoroutineScope.launch {
-    //        this@PrintActivity.settingsDataStore.updateData { currentSettings ->
-    //            val builder = currentSettings.toBuilder()
-    //            val printerBuilder = (builder.ipPrintersMap[uuid] ?: PrinterSettings.getDefaultInstance()).toBuilder()
-    //            builder.putPrinters(uuid, updater(printerBuilder).build())
-    //            return@updateData builder.build()
-    //        }
-    //    }
-    //}
 
     fun addPrinterSetting() {
         appCoroutineScope.launch {
@@ -130,6 +118,14 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
+    fun printTestPage(uuid: String) {
+        val pages = JSONArray()
+        pages.put("<html><body>wololo</body></html>")
+        appCoroutineScope.launch {
+            printHtml(pages, uuid);
+        }
+    }
+
     private fun updatePrintersList() {
         val allowed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             ActivityCompat.checkSelfPermission(
@@ -149,10 +145,24 @@ class PrintActivity : ComponentActivity() {
         bluetoothEnabled.update {
             bluetoothAdapter.isEnabled
         }
-        printers.update {
+        lifecycleScope.launch {
             bluetoothAdapter.bondedDevices
                 .filter { it.bluetoothClass.deviceClass == 1664 }  // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
-                .map { Printer(address = it.address, name = it.name) }
+                .forEach {
+                    this@PrintActivity.settingsDataStore.updateData { currentSettings ->
+                        val builder = currentSettings.toBuilder()
+                        if (!currentSettings.printersMap.contains(it.address)) {
+                            val newPrinter = DEFAULT_PRINTER_SETTINGS
+                                .toBuilder()
+                                .setInterface(Interface.BLUETOOTH)
+                                .setAddress(it.address)
+                                .setName(it.name)
+                                .build()
+                            builder.putPrinters(it.address, newPrinter)
+                        }
+                        return@updateData builder.build()
+                    }
+                }
         }
     }
 
@@ -184,12 +194,12 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun printHtml(pages: JSONArray) {
+    private suspend fun printHtml(pages: JSONArray, printerUuid: String? = null) {
         val settings = settingsDataStore.data.first()
-        val defaultPrinter = settings.defaultPrinter
-        val printerSettings = settings.printersMap[defaultPrinter]
+        val uuid = printerUuid ?: settings.defaultPrinter
+        val printerSettings = settings.printersMap[uuid]
         if (printerSettings == null) {
-            // TODO: toast error
+            Toast.makeText(this, "Could not find printer settings.", Toast.LENGTH_SHORT).show()
             return
         }
         val width = printerSettings.width
@@ -204,9 +214,13 @@ class PrintActivity : ComponentActivity() {
             Driver.ESC_POS -> ::EscPosDriver
             Driver.CPCL -> ::CpclDriver
             // TODO: handle this gracefully, factorize with print service
-            else -> throw java.lang.Exception("Unrecognized driver in settings")
+            else ->{
+                val message = "Unrecognized driver in settings"
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                throw java.lang.Exception(message)
+            }
         }
-        val instance = driverClass(ctx, defaultPrinter, printerSettings)
+        val instance = driverClass(ctx, printerSettings)
         renderPages(ctx, width, dpi, pages, marginLeft, marginTop, marginRight, marginBottom).forEach {
             instance.printBitmap(it)
         }

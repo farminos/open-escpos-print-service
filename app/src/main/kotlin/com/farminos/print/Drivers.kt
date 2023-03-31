@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.citizen.jpos.command.CPCLConst
 import com.citizen.jpos.printer.CPCLPrinter
@@ -18,7 +19,6 @@ import com.dantsu.escposprinter.connection.tcp.TcpConnection
 // TODO: make PrinterDriver Closeable
 abstract class PrinterDriver(
     context: Context,
-    address: String,
     protected val settings: PrinterSettings,
 ) {
     protected var lastTime: Long? = null
@@ -47,9 +47,8 @@ abstract class PrinterDriver(
 
 class EscPosDriver(
     context: Context,
-    address: String,
     settings: PrinterSettings,
-): PrinterDriver(context, address, settings) {
+): PrinterDriver(context, settings) {
     private val commands: EscPosPrinterCommands
     init {
         val connection = when (settings.`interface`) {
@@ -59,7 +58,7 @@ class EscPosDriver(
                     BluetoothManager::class.java
                 )!!
                 val bluetoothAdapter = bluetoothManager.adapter
-                val device = bluetoothAdapter.getRemoteDevice(address)
+                val device = bluetoothAdapter.getRemoteDevice(settings.address)
                 BluetoothConnection(device)
             }
             Interface.TCP_IP -> {
@@ -101,9 +100,8 @@ class EscPosDriver(
 
 class CpclDriver(
     context: Context,
-    address: String,
     settings: PrinterSettings,
-): PrinterDriver(context, address, settings) {
+): PrinterDriver(context, settings) {
     private val port: PortInterface
     private val requestHandlerThread: Thread
     private val cpclPrinter: CPCLPrinter
@@ -111,16 +109,21 @@ class CpclDriver(
     init {
         port = when (settings.`interface`) {
             Interface.BLUETOOTH -> {
-                BluetoothPort.getInstance()
+                val p = BluetoothPort.getInstance()
+                Log.d("WTF", "${settings.address} ${settings.dpi}")
+                p.connect(settings.address)
+                p
             }
             Interface.TCP_IP -> {
-                WiFiPort.getInstance()
+                val p = WiFiPort.getInstance()
+                val addressAndPort = settings.address.split(":")
+                p.connect(addressAndPort[0], addressAndPort[1].toInt())
+                p
             }
             else -> {
                 throw Exception("Unknown interface")
             }
         }
-        port.connect(address) // TODO: settings.address for wifi
         while (!port.isConnected) {
             Thread.sleep(100)
         }

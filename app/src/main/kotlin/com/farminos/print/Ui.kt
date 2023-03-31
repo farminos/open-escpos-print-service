@@ -192,7 +192,6 @@ fun <T> LabelledTextField(
 fun PrinterCard(
     context: PrintActivity,
     uuid: String,
-    name: String,
     settings: PrinterSettings,
     defaultPrinterAddress: String,
 ) {
@@ -200,10 +199,10 @@ fun PrinterCard(
         header = {
             Column {
                 Text(
-                    text = name,
+                    text = settings.name,
                 )
                 Text(
-                    text = uuid,
+                    text = settings.address,
                     color = MaterialTheme.colorScheme.secondary,
                 )
             }
@@ -263,15 +262,15 @@ fun PrinterCard(
                         },
                         keyboardType = KeyboardType.Text,
                     )
-                    Button(
-                        onClick = {
-                            context.deletePrinterSetting(uuid)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.elevatedButtonColors(),
-                    ) {
-                        Text(text = "Delete this printer")
-                    }
+                }
+                Button(
+                    onClick = {
+                        context.deletePrinterSetting(uuid)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.elevatedButtonColors(),
+                ) {
+                    Text(text = "Delete this printer")
                 }
                 MenuSelect(
                     options = arrayOf(
@@ -402,6 +401,15 @@ fun PrinterCard(
                         }
                     },
                 )
+                Button(
+                    onClick = {
+                        context.printTestPage(uuid)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.elevatedButtonColors(),
+                ) {
+                    Text(text = "Print test page")
+                }
             }
         }
     )
@@ -413,7 +421,6 @@ fun SettingsScreen(
     val settings: Settings by context.settingsDataStore.data.collectAsState(Settings.getDefaultInstance())
     val bluetoothAllowed by context.bluetoothAllowed.collectAsState()
     val bluetoothEnabled by context.bluetoothEnabled.collectAsState()
-    val printers by context.printers.collectAsState()
 
     FarminOSCITIZENPrintServiceTheme {
         Surface(
@@ -453,14 +460,11 @@ fun SettingsScreen(
                         Text(text = "Enable bluetooth")
                     }
                 } else {
-                    printers
-                        .forEach {
-                            val printerSettings =
-                                settings.printersMap[it.address] ?: DEFAULT_PRINTER_SETTINGS.toBuilder().setInterface(Interface.BLUETOOTH).build()
+                    settings.printersMap.filter { it.value.`interface` == Interface.BLUETOOTH }
+                        .forEach { (uuid, printerSettings) ->
                             PrinterCard(
                                 context = context,
-                                uuid = it.address,
-                                name = it.name,
+                                uuid = uuid,
                                 settings = printerSettings,
                                 defaultPrinterAddress = settings.defaultPrinter,
                             )
@@ -473,13 +477,11 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .padding(10.dp)
                 )
-                val btAddresses = printers.map { it.address }
-                settings.printersMap.filter { !btAddresses.contains(it.key) }
+                settings.printersMap.filter { it.value.`interface` == Interface.TCP_IP }
                     .forEach { (uuid, printerSettings) ->
                         PrinterCard(
                             context = context,
                             uuid = uuid,
-                            name = printerSettings.name,
                             settings = printerSettings,
                             defaultPrinterAddress = settings.defaultPrinter,
                         )
