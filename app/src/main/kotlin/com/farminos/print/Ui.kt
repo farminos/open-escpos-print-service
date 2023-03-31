@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.farminos.print.ui.theme.FarminOSCITIZENPrintServiceTheme
+import com.farminos.print.ui.theme.OpenESCPOSPrintServiceTheme
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -422,7 +422,7 @@ fun SettingsScreen(
     val bluetoothAllowed by context.bluetoothAllowed.collectAsState()
     val bluetoothEnabled by context.bluetoothEnabled.collectAsState()
 
-    FarminOSCITIZENPrintServiceTheme {
+    OpenESCPOSPrintServiceTheme {
         Surface(
             modifier = Modifier
                 .fillMaxSize()

@@ -120,7 +120,7 @@ class PrintActivity : ComponentActivity() {
 
     fun printTestPage(uuid: String) {
         val pages = JSONArray()
-        pages.put("<html><body>wololo</body></html>")
+        pages.put("<html><body><div style=\"font-size: 70vw; margin: 0 auto\">\uD83D\uDDA8️</div></body></html>")
         appCoroutineScope.launch {
             printHtml(pages, uuid);
         }

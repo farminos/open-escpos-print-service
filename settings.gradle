@@ -15,5 +15,5 @@ dependencyResolutionManagement {
         }
     }
 }
-rootProject.name = "FarminOS CITIZEN Print Service"
+rootProject.name = "Open ESCPOS Print Service"
 include ':app'

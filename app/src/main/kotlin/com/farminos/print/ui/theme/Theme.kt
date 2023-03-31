@@ -15,7 +15,7 @@ private val AppLightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun FarminOSCITIZENPrintServiceTheme(
+fun OpenESCPOSPrintServiceTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
