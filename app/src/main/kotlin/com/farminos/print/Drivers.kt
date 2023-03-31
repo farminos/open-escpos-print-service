@@ -8,6 +8,8 @@ import androidx.core.content.ContextCompat
 import com.citizen.jpos.command.CPCLConst
 import com.citizen.jpos.printer.CPCLPrinter
 import com.citizen.port.android.BluetoothPort
+import com.citizen.port.android.PortInterface
+import com.citizen.port.android.WiFiPort
 import com.citizen.request.android.RequestHandler
 import com.dantsu.escposprinter.EscPosPrinterCommands
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
@@ -102,13 +104,24 @@ class CpclDriver(
     address: String,
     settings: PrinterSettings,
 ): PrinterDriver(context, address, settings) {
-    private val bluetoothPort: BluetoothPort = BluetoothPort.getInstance()
+    private val port: PortInterface
     private val requestHandlerThread: Thread
     private val cpclPrinter: CPCLPrinter
 
     init {
-        bluetoothPort.connect(address)
-        while (!bluetoothPort.isConnected) {
+        port = when (settings.`interface`) {
+            Interface.BLUETOOTH -> {
+                BluetoothPort.getInstance()
+            }
+            Interface.TCP_IP -> {
+                WiFiPort.getInstance()
+            }
+            else -> {
+                throw Exception("Unknown interface")
+            }
+        }
+        port.connect(address) // TODO: settings.address for wifi
+        while (!port.isConnected) {
             Thread.sleep(100)
         }
         requestHandlerThread = Thread(RequestHandler())
@@ -136,8 +149,8 @@ class CpclDriver(
         if (requestHandlerThread.isAlive) {
             requestHandlerThread.interrupt()
         }
-        if (bluetoothPort.isConnected) {
-            bluetoothPort.disconnect()
+        if (port.isConnected) {
+            port.disconnect()
         }
     }
 }
