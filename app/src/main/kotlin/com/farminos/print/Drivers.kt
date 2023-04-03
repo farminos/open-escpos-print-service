@@ -63,7 +63,7 @@ class EscPosDriver(
             }
             Interface.TCP_IP -> {
                 val addressAndPort = settings.address.split(":")
-                TcpConnection(addressAndPort[0], addressAndPort[1].toInt())
+                TcpConnection(addressAndPort[0], addressAndPort[1].toInt(), 5000)
             }
             else -> {
                 throw Exception("Unknown interface")
