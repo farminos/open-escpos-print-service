@@ -129,7 +129,7 @@ class CpclDriver(
         requestHandlerThread = Thread(RequestHandler())
         requestHandlerThread.start()
         cpclPrinter = CPCLPrinter()
-        val checkStatus = cpclPrinter.printerCheck()
+        val checkStatus = cpclPrinter.printerCheck(10000)
         if (checkStatus != CPCLConst.CMP_SUCCESS) {
             throw Exception("Printer check failed: $checkStatus")
         }
