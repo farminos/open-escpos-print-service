@@ -110,7 +110,6 @@ class CpclDriver(
         port = when (settings.`interface`) {
             Interface.BLUETOOTH -> {
                 val p = BluetoothPort.getInstance()
-                Log.d("WTF", "${settings.address} ${settings.dpi}")
                 p.connect(settings.address)
                 p
             }
@@ -132,11 +131,11 @@ class CpclDriver(
         cpclPrinter = CPCLPrinter()
         val checkStatus = cpclPrinter.printerCheck()
         if (checkStatus != CPCLConst.CMP_SUCCESS) {
-            throw Exception("Printer check failed")
+            throw Exception("Printer check failed: $checkStatus")
         }
         val status = cpclPrinter.status()
         if (status != CPCLConst.CMP_SUCCESS) {
-            throw Exception("Printer status failed")
+            throw Exception("Printer status failed: $status")
         }
         cpclPrinter.setMedia(CPCLConst.CMP_CPCL_LABEL)
     }
