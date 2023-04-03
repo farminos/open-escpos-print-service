@@ -157,3 +157,14 @@ class CpclDriver(
         }
     }
 }
+
+fun createDriver(ctx: Context, printerSettings: PrinterSettings): PrinterDriver {
+    val driverClass = when(printerSettings.driver) {
+        Driver.ESC_POS -> ::EscPosDriver
+        Driver.CPCL -> ::CpclDriver
+        else ->{
+            throw Exception("Unrecognized driver in settings")
+        }
+    }
+    return driverClass(ctx, printerSettings)
+}

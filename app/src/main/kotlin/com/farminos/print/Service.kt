@@ -172,15 +172,13 @@ class FarminOSPrintService : PrintService() {
         if (mediaSize == null || resolution == null) {
             throw Exception("No media size or resolution in print job info")
         }
-        val driverClass = when (printer.settings.driver) {
-            Driver.ESC_POS -> ::EscPosDriver
-            Driver.CPCL -> ::CpclDriver
-            else -> throw Exception("Unrecognized driver in settings")
+        val instance = createDriver(this, printer.settings)
+        try {
+            instance.printDocument(copy)
+        } finally {
+            // TODO: move this somewhere else
+            instance.disconnect()
         }
-        val instance = driverClass(this, printer.settings)
-        instance.printDocument(copy)
-        // TODO: move this somewhere else
-        instance.disconnect()
     }
 
     override fun onRequestCancelPrintJob(printJob: PrintJob) {

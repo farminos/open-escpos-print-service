@@ -122,7 +122,7 @@ class PrintActivity : ComponentActivity() {
         val pages = JSONArray()
         pages.put("<html><body><div style=\"font-size: 70vw; margin: 0 auto\">\uD83D\uDDA8️</div></body></html>")
         appCoroutineScope.launch {
-            printHtml(pages, uuid);
+            printHtmlOrToast(pages, uuid)
         }
     }
 
@@ -166,6 +166,16 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
+    private suspend fun printHtmlOrToast(pages: JSONArray, printerUuid: String? = null) {
+        try {
+            printHtml(pages, printerUuid)
+        } catch (exception: Exception) {
+            this@PrintActivity.runOnUiThread {
+                Toast.makeText(this@PrintActivity, exception.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         updatePrintersList()
@@ -178,11 +188,11 @@ class PrintActivity : ComponentActivity() {
         if (intent.action.equals(Intent.ACTION_VIEW)) {
             val content : String? = intent.getStringExtra("content")
             if (content == null) {
-                // TODO: toast
+                Toast.makeText(this, "No content provided for printing", Toast.LENGTH_SHORT).show()
             } else {
                 val pages = JSONArray(decompress(Base64.decode(content, Base64.DEFAULT)))
                 lifecycleScope.launch(Dispatchers.IO) {
-                    printHtml(pages)
+                    printHtmlOrToast(pages)
                 }
             }
             finish()
@@ -197,10 +207,12 @@ class PrintActivity : ComponentActivity() {
     private suspend fun printHtml(pages: JSONArray, printerUuid: String? = null) {
         val settings = settingsDataStore.data.first()
         val uuid = printerUuid ?: settings.defaultPrinter
+        if (uuid == "" || uuid == null) {
+            throw Exception("Please configure a default printer.")
+        }
         val printerSettings = settings.printersMap[uuid]
         if (printerSettings == null) {
-            Toast.makeText(this, "Could not find printer settings.", Toast.LENGTH_SHORT).show()
-            return
+            throw Exception("Could not find printer settings.")
         }
         val width = printerSettings.width
         val marginLeft = printerSettings.marginLeft
@@ -208,24 +220,23 @@ class PrintActivity : ComponentActivity() {
         val marginRight = printerSettings.marginRight
         val marginBottom = printerSettings.marginBottom
         val dpi = printerSettings.dpi
-        val driver = printerSettings.driver
-        val ctx = this
-        val driverClass = when(driver) {
-            Driver.ESC_POS -> ::EscPosDriver
-            Driver.CPCL -> ::CpclDriver
-            // TODO: handle this gracefully, factorize with print service
-            else ->{
-                val message = "Unrecognized driver in settings"
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-                throw java.lang.Exception(message)
+        val instance = createDriver(this, printerSettings)
+        try {
+            renderPages(
+                this,
+                width,
+                dpi,
+                pages,
+                marginLeft,
+                marginTop,
+                marginRight,
+                marginBottom
+            ).forEach {
+                instance.printBitmap(it)
             }
+        } finally {
+            instance.disconnect()
         }
-        val instance = driverClass(ctx, printerSettings)
-        renderPages(ctx, width, dpi, pages, marginLeft, marginTop, marginRight, marginBottom).forEach {
-            instance.printBitmap(it)
-        }
-        // TODO: move this somewhere else
-        instance.disconnect()
     }
 
     override fun onDestroy() {
