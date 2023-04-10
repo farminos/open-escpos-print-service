@@ -120,8 +120,8 @@ fun buildPrinterInfo(id: PrinterId, name: String, settings: PrinterSettings): Pr
                     true
                 )
                 .setColorModes(
-                    PrintAttributes.COLOR_MODE_COLOR,
-                    PrintAttributes.COLOR_MODE_COLOR
+                    PrintAttributes.COLOR_MODE_MONOCHROME,
+                    PrintAttributes.COLOR_MODE_MONOCHROME
                 )
                 .setMinMargins(
                     Margins(
