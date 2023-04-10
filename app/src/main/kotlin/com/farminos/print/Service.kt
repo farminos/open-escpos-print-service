@@ -174,7 +174,9 @@ class FarminOSPrintService : PrintService() {
         }
         val instance = createDriver(this, printer.settings)
         try {
-            instance.printDocument(copy)
+            for (i in 0 until printJob.info.copies) {
+                instance.printDocument(copy)
+            }
         } finally {
             // TODO: move this somewhere else
             instance.disconnect()
