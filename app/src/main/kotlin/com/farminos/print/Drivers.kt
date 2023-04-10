@@ -128,8 +128,9 @@ class CpclDriver(
         }
         requestHandlerThread = Thread(RequestHandler())
         requestHandlerThread.start()
+
         cpclPrinter = CPCLPrinter()
-        val checkStatus = cpclPrinter.printerCheck(10000)
+        val checkStatus = cpclPrinter.printerCheck(5000)
         if (checkStatus != CPCLConst.CMP_SUCCESS) {
             throw Exception("Printer check failed: $checkStatus")
         }
@@ -137,11 +138,11 @@ class CpclDriver(
         if (status != CPCLConst.CMP_SUCCESS) {
             throw Exception("Printer status failed: $status")
         }
+        cpclPrinter.setForm(0, settings.dpi, settings.dpi, (settings.height * 100).toInt(), 1)
         cpclPrinter.setMedia(CPCLConst.CMP_CPCL_LABEL)
     }
 
     override fun printBitmap(bitmap: Bitmap) {
-        cpclPrinter.setForm(0, settings.dpi, settings.dpi, (settings.height * 100).toInt(), 1)
         cpclPrinter.printBitmap(bitmap, 0, 0)
         cpclPrinter.printForm()
         delayForLength(settings.height)
