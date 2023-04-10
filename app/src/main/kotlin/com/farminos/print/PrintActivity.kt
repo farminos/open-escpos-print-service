@@ -113,6 +113,9 @@ class PrintActivity : ComponentActivity() {
             this@PrintActivity.settingsDataStore.updateData { currentSettings ->
                 val builder = currentSettings.toBuilder()
                 builder.removePrinters(uuid)
+                if (uuid == builder.defaultPrinter) {
+                    builder.defaultPrinter = ""
+                }
                 return@updateData builder.build()
             }
         }
