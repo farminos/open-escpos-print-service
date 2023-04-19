@@ -31,8 +31,8 @@ android {
         applicationId "com.farminos.print"
         minSdk 21
         targetSdk 33
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.0.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -68,17 +68,17 @@ android {
 
 dependencies {
     implementation files('libs/Citizen_Android_1093.jar')
-    implementation 'androidx.activity:activity-compose:1.6.1'
+    implementation 'androidx.activity:activity-compose:1.7.0'
     implementation 'androidx.compose.material3:material3:1.0.1'
     implementation "androidx.compose.ui:ui:$compose_ui_version"
     implementation "androidx.compose.ui:ui-tooling-preview:$compose_ui_version"
-    implementation 'androidx.core:core-ktx:1.9.0'
+    implementation 'androidx.core:core-ktx:1.10.0'
     implementation "androidx.datastore:datastore:1.0.0"
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.1'
     implementation 'com.github.DantSu:ESCPOS-ThermalPrinter-Android:3.2.1'
-    implementation 'com.izettle:html2bitmap:1.9'
-    implementation "com.google.protobuf:protobuf-javalite:3.21.2"
-    implementation 'com.google.protobuf:protobuf-kotlin-lite:3.21.2'
+    implementation 'com.izettle:html2bitmap:1.10'
+    implementation "com.google.protobuf:protobuf-javalite:3.22.3"
+    implementation 'com.google.protobuf:protobuf-kotlin-lite:3.22.3'
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4"
     testImplementation 'junit:junit:4.13.2'
