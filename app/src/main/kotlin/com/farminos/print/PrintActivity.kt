@@ -144,7 +144,7 @@ class PrintActivity : ComponentActivity() {
         }
         val bluetoothManager = ContextCompat.getSystemService(this, BluetoothManager::class.java)
             ?: return
-        val bluetoothAdapter = bluetoothManager.adapter
+        val bluetoothAdapter = bluetoothManager.adapter ?: return
         bluetoothEnabled.update {
             bluetoothAdapter.isEnabled
         }
