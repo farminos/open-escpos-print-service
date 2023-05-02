@@ -56,7 +56,6 @@ val Context.settingsDataStore: DataStore<Settings> by dataStore(
 
 data class Printer(val address: String, val name: String)
 
-@Suppress("DEPRECATION")
 class PrintActivity : ComponentActivity() {
     private val bluetoothBroadcastReceiver = BluetoothBroadcastReceiver(this)
     private val appCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -160,6 +159,7 @@ class PrintActivity : ComponentActivity() {
                                 .setInterface(Interface.BLUETOOTH)
                                 .setAddress(it.address)
                                 .setName(it.name)
+                                .setDriver(if (it.name.startsWith("CMP-")) Driver.CPCL else Driver.ESC_POS)
                                 .build()
                             builder.putPrinters(it.address, newPrinter)
                         }
