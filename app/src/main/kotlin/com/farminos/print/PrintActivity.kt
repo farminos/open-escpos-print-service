@@ -179,6 +179,7 @@ class PrintActivity : ComponentActivity() {
         try {
             printHtml(pages, printerUuid)
         } catch (exception: Exception) {
+            exception.printStackTrace()
             this@PrintActivity.runOnUiThread {
                 Toast.makeText(this@PrintActivity, exception.message, Toast.LENGTH_SHORT).show()
             }
