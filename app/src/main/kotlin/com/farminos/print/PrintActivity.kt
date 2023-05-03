@@ -72,12 +72,38 @@ class PrintActivity : ComponentActivity() {
     }
     var bluetoothAllowed: MutableStateFlow<Boolean> = MutableStateFlow(false)
     var bluetoothEnabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private var defaultPrinterConnection: PrinterDriver? = null
 
     fun updateDefaultPrinter(address: String) {
         appCoroutineScope.launch {
             this@PrintActivity.settingsDataStore.updateData { currentSettings ->
                 currentSettings.toBuilder()
                     .setDefaultPrinter(address)
+                    .build()
+            }
+        }
+
+        appCoroutineScope.launch {
+            val settings = this@PrintActivity.settingsDataStore.data.first()
+
+            // 1. disconnect default printer connection if it exists
+            defaultPrinterConnection?.disconnect()
+
+            // 2. create one for new default printer if default printer connection is set
+            if (settings.defaultPrinterConnection) {
+                val defaultPrinterSettings = settings.printersMap[address]
+                if (defaultPrinterSettings != null) {
+                    this@PrintActivity.defaultPrinterConnection = createDriver(this@PrintActivity, defaultPrinterSettings)
+                }
+            }
+        }
+    }
+
+    fun updateDefaultPrinterConnectionSetting(value: Boolean) {
+        appCoroutineScope.launch {
+            this@PrintActivity.settingsDataStore.updateData { currentSettings ->
+                currentSettings.toBuilder()
+                    .setDefaultPrinterConnection(value)
                     .build()
             }
         }
@@ -209,6 +235,9 @@ class PrintActivity : ComponentActivity() {
 
     private suspend fun printHtml(pages: JSONArray, printerUuid: String? = null) {
         val settings = settingsDataStore.data.first()
+
+
+
         val uuid = printerUuid ?: settings.defaultPrinter
         if (uuid == "" || uuid == null) {
             throw Exception("Please configure a default printer.")
@@ -223,7 +252,14 @@ class PrintActivity : ComponentActivity() {
         val marginRight = printerSettings.marginRight
         val marginBottom = printerSettings.marginBottom
         val dpi = printerSettings.dpi
-        val instance = createDriver(this, printerSettings)
+
+        val useDefaultPrinter = printerUuid == null && settings.defaultPrinter == null || printerUuid.equals(settings.defaultPrinter)
+
+        val instance: PrinterDriver = if (useDefaultPrinter && this.defaultPrinterConnection != null) {
+            this.defaultPrinterConnection!!
+        } else {
+            createDriver(this, printerSettings)
+        }
         try {
             renderPages(
                 this,
@@ -238,6 +274,7 @@ class PrintActivity : ComponentActivity() {
                 instance.printBitmap(it)
             }
         } finally {
+            // TODO: don't disconnect if connection should be kept
             instance.disconnect()
         }
     }

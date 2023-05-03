@@ -35,4 +35,5 @@ message Settings {
   string default_printer = 1;
   // bluetooth printers: mac address -> settings; ip printers: uuid -> settings
   map<string, PrinterSettings> printers = 2;
+  bool default_printer_connection = 3;
 }

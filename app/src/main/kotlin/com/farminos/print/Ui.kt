@@ -494,6 +494,11 @@ fun SettingsScreen(
                 ) {
                     Text(text = "Add a network printer")
                 }
+                LabelledSwitch(
+                    label = "Keep default printer connected",
+                    checked = settings.defaultPrinterConnection,
+                    onCheckedChange = { checked -> context.updateDefaultPrinterConnectionSetting(checked) }
+                )
             }
         }
     }
