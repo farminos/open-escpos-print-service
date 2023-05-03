@@ -1,5 +1,7 @@
 package com.farminos.print
 
+import android.content.Intent
+import android.provider.Settings.ACTION_BLUETOOTH_SETTINGS
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat.startActivity
 import com.farminos.print.ui.theme.OpenESCPOSPrintServiceTheme
 
 
@@ -458,6 +461,23 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(text = "Enable bluetooth")
+                    }
+                } else if (settings.printersMap.isEmpty()) {
+                    Text(
+                        "There are no paired Bluetooth printers, you need to pair a printer in the Bluetooth setting first.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp)
+                    )
+                    Button(
+                        onClick = {
+                            val intent = Intent(ACTION_BLUETOOTH_SETTINGS)
+                            startActivity(context, intent, null)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = "Bluetooth settings")
                     }
                 } else {
                     settings.printersMap.filter { it.value.`interface` == Interface.BLUETOOTH }

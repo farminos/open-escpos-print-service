@@ -179,6 +179,11 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        updatePrintersList()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         updatePrintersList()
