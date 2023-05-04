@@ -34,3 +34,6 @@ There are speed limits and delays that you can set in each printer settings; if 
 Some things are not implemented yet:
  * a document print queue;
  * discovery of network printers through mDNS.
+
+## Linter
+Please lint with `./gradlew lintKotlin` and format code with `./gradlew formatKotlin` before commiting.
