@@ -140,10 +140,14 @@ class CpclDriver(
     }
 
     override fun printBitmap(bitmap: Bitmap) {
+        delayForLength(0F)
         cpclPrinter.setForm(0, settings.dpi, settings.dpi, (settings.height * 100).toInt(), 1)
         cpclPrinter.setMedia(CPCLConst.CMP_CPCL_LABEL)
-        cpclPrinter.printBitmap(bitmap, 0, 0)
-        delayForLength(0F)
+        val tileSize = 36
+        bitmapNonEmptyTiles(bitmap, tileSize).forEach {
+            val tileBitmap = Bitmap.createBitmap(bitmap, it.x, it.y, it.width, it.height)
+            cpclPrinter.printBitmap(tileBitmap, it.x, it.y)
+        }
         cpclPrinter.printForm()
         delayForLength(settings.height)
     }

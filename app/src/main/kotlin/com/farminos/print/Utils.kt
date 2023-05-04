@@ -15,6 +15,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.util.zip.GZIPInputStream
 import kotlin.math.ceil
+import kotlin.math.min
 
 @Throws(IOException::class)
 fun decompress(compressed: ByteArray?): String {
@@ -90,6 +91,37 @@ fun bitmapSlices(bitmap: Bitmap, step: Int) = sequence<Bitmap> {
             if (y + step >= height) height - y else step,
         )
         yield(slice)
+    }
+}
+
+data class Tile(val x: Int, val y: Int, val width: Int, val height: Int)
+
+fun bitmapTiles(bitmap: Bitmap, tileSize: Int) = sequence<Tile> {
+    for (y in 0 until bitmap.height step tileSize) {
+        for (x in 0 until bitmap.width step tileSize) {
+            val width = min(tileSize, bitmap.width - x)
+            val height = min(tileSize, bitmap.height - y)
+            yield(Tile(x, y, width, height))
+        }
+    }
+}
+
+fun bitmapRegionIsWhite(bitmap: Bitmap, tile: Tile): Boolean {
+    val pixels = IntArray(tile.width * tile.height)
+    bitmap.getPixels(pixels, 0, tile.width, tile.x, tile.y, tile.width, tile.height)
+    for (pixel in pixels) {
+        if (pixel != Color.WHITE) {
+            return false
+        }
+    }
+    return true
+}
+
+fun bitmapNonEmptyTiles(bitmap: Bitmap, tileSize: Int) = sequence<Tile> {
+    for (tile in bitmapTiles(bitmap, tileSize)) {
+        if (!bitmapRegionIsWhite(bitmap, tile)) {
+            yield(tile)
+        }
     }
 }
 
