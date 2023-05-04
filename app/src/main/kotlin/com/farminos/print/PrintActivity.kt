@@ -31,7 +31,6 @@ import org.json.JSONArray
 import java.io.*
 import java.util.*
 
-
 object SettingsSerializer : Serializer<Settings> {
     override val defaultValue: Settings = Settings.getDefaultInstance()
 
@@ -45,13 +44,13 @@ object SettingsSerializer : Serializer<Settings> {
 
     override suspend fun writeTo(
         t: Settings,
-        output: OutputStream
+        output: OutputStream,
     ) = t.writeTo(output)
 }
 
 val Context.settingsDataStore: DataStore<Settings> by dataStore(
     fileName = "settings.pb",
-    serializer = SettingsSerializer
+    serializer = SettingsSerializer,
 )
 
 data class Printer(val address: String, val name: String)
@@ -60,12 +59,12 @@ class PrintActivity : ComponentActivity() {
     private val bluetoothBroadcastReceiver = BluetoothBroadcastReceiver(this)
     private val appCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val activityResultLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
+        ActivityResultContracts.StartActivityForResult(),
     ) {
         updatePrintersList()
     }
     private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
+        ActivityResultContracts.RequestMultiplePermissions(),
     ) {
         updatePrintersList()
     }
@@ -100,7 +99,7 @@ class PrintActivity : ComponentActivity() {
                 val builder = currentSettings.toBuilder()
                 builder.putPrinters(
                     uuid,
-                    DEFAULT_PRINTER_SETTINGS.toBuilder().setInterface(Interface.TCP_IP).build()
+                    DEFAULT_PRINTER_SETTINGS.toBuilder().setInterface(Interface.TCP_IP).build(),
                 )
                 return@updateData builder.build()
             }
@@ -132,7 +131,7 @@ class PrintActivity : ComponentActivity() {
         val allowed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             ActivityCompat.checkSelfPermission(
                 this,
-                Manifest.permission.BLUETOOTH_CONNECT
+                Manifest.permission.BLUETOOTH_CONNECT,
             ) == PackageManager.PERMISSION_GRANTED
         } else {
             true
@@ -149,7 +148,7 @@ class PrintActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
             bluetoothAdapter.bondedDevices
-                .filter { it.bluetoothClass.deviceClass == 1664 }  // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
+                .filter { it.bluetoothClass.deviceClass == 1664 } // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
                 .forEach {
                     this@PrintActivity.settingsDataStore.updateData { currentSettings ->
                         val builder = currentSettings.toBuilder()
@@ -194,7 +193,7 @@ class PrintActivity : ComponentActivity() {
         )
 
         if (intent.action.equals(Intent.ACTION_VIEW)) {
-            val content : String? = intent.getStringExtra("content")
+            val content: String? = intent.getStringExtra("content")
             if (content == null) {
                 Toast.makeText(this, "No content provided for printing", Toast.LENGTH_SHORT).show()
             } else {
@@ -238,7 +237,7 @@ class PrintActivity : ComponentActivity() {
                 marginLeft,
                 marginTop,
                 marginRight,
-                marginBottom
+                marginBottom,
             ).forEach {
                 instance.printBitmap(it)
             }
@@ -255,7 +254,7 @@ class PrintActivity : ComponentActivity() {
     fun requestBluetoothPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             requestPermissionLauncher.launch(
-                arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN)
+                arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN),
             )
         }
     }
@@ -293,7 +292,7 @@ class PrintActivity : ComponentActivity() {
 private fun renderHtml(
     context: Context,
     widthPixels: Int,
-    content: String
+    content: String,
 ): Bitmap? {
     return Html2Bitmap.Builder()
         .setContext(context)

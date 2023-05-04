@@ -55,7 +55,7 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
         val bluetoothAdapter = bluetoothManager.adapter
         if (ActivityCompat.checkSelfPermission(
                 context,
-                Manifest.permission.BLUETOOTH_CONNECT
+                Manifest.permission.BLUETOOTH_CONNECT,
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             return listOf()
@@ -113,15 +113,15 @@ fun buildPrinterInfo(id: PrinterId, name: String, settings: PrinterSettings): Pr
                         cmToMils(width),
                         cmToMils(height),
                     ),
-                    true
+                    true,
                 )
                 .addResolution(
                     Resolution("${dpi}dpi", "${dpi}dpi", dpi, dpi),
-                    true
+                    true,
                 )
                 .setColorModes(
                     PrintAttributes.COLOR_MODE_MONOCHROME,
-                    PrintAttributes.COLOR_MODE_MONOCHROME
+                    PrintAttributes.COLOR_MODE_MONOCHROME,
                 )
                 .setMinMargins(
                     Margins(
@@ -129,9 +129,9 @@ fun buildPrinterInfo(id: PrinterId, name: String, settings: PrinterSettings): Pr
                         cmToMils(settings.marginTop),
                         cmToMils(settings.marginRight),
                         cmToMils(settings.marginBottom),
-                    )
+                    ),
                 )
-                .build()
+                .build(),
         ).build()
 }
 
@@ -147,7 +147,7 @@ class FarminOSPrintService : PrintService() {
     override fun onPrintJobQueued(printJob: PrintJob) {
         // TODO: actual queue
         printJob.start()
-        try{
+        try {
             printDocument(printJob)
             printJob.complete()
         } catch (exception: Exception) {

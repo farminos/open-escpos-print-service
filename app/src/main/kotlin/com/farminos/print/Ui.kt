@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.startActivity
 import com.farminos.print.ui.theme.OpenESCPOSPrintServiceTheme
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpandableCard(
@@ -32,7 +31,7 @@ fun ExpandableCard(
 ) {
     var open by remember { mutableStateOf(false) }
     val rotation by animateFloatAsState(
-        targetValue = if (open) 180f else 0f
+        targetValue = if (open) 180f else 0f,
     )
 
     Card(
@@ -43,7 +42,7 @@ fun ExpandableCard(
                 animationSpec = tween(
                     durationMillis = 300,
                     easing = LinearOutSlowInEasing,
-                )
+                ),
             ),
         onClick = {
             open = !open
@@ -52,7 +51,7 @@ fun ExpandableCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp)
+                .padding(10.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -62,12 +61,12 @@ fun ExpandableCard(
                 IconButton(
                     modifier = Modifier.rotate(rotation),
                     onClick = {
-                        open = ! open
-                    }
-                ){
+                        open = !open
+                    },
+                ) {
                     Icon(
                         imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = "drop down arrow"
+                        contentDescription = "drop down arrow",
                     )
                 }
             }
@@ -105,9 +104,9 @@ fun MenuSelect(
                 trailingIcon = {
                     Icon(
                         imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = "expand driver select menu"
+                        contentDescription = "expand driver select menu",
                     )
-                }
+                },
             )
             // This box is rendered on top of the TextField above and catches the clicks as we
             // cannot have clickable TextFields that are not disabled
@@ -117,14 +116,14 @@ fun MenuSelect(
                     .clickable(
                         onClick = {
                             expanded = true
-                        }
-                    )
+                        },
+                    ),
             )
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = {
                     expanded = false
-                }
+                },
             ) {
                 options.forEach {
                     DropdownMenuItem(
@@ -141,6 +140,7 @@ fun MenuSelect(
         }
     }
 }
+
 @Composable
 fun LabelledSwitch(
     label: String,
@@ -215,7 +215,7 @@ fun PrinterCard(
                 LabelledSwitch(
                     label = "Enabled",
                     checked = settings.enabled,
-                    onCheckedChange = {enabled ->
+                    onCheckedChange = { enabled ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setEnabled(enabled)
                         }
@@ -228,7 +228,7 @@ fun PrinterCard(
                 LabelledSwitch(
                     label = "Default printer",
                     checked = uuid == defaultPrinterAddress,
-                    onCheckedChange = {isDefault ->
+                    onCheckedChange = { isDefault ->
                         if (isDefault) {
                             // disabled printer can't be set as default
                             context.updatePrinterSetting(uuid = uuid) {
@@ -281,19 +281,19 @@ fun PrinterCard(
                         Option(value = Driver.CPCL_VALUE, label = "Citizen CPCL"),
                     ),
                     selectedValue = settings.driverValue,
-                    onSelect = {value ->
+                    onSelect = { value ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setDriverValue(value)
                         }
-                    }
+                    },
                 )
                 LabelledTextField(
                     label = "DPI",
                     value = settings.dpi.toString(),
-                    transform = {dpi ->
+                    transform = { dpi ->
                         dpi.toIntOrNull()
                     },
-                    onValueChange = {dpi ->
+                    onValueChange = { dpi ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setDpi(dpi)
                         }
@@ -302,10 +302,10 @@ fun PrinterCard(
                 LabelledTextField(
                     label = "Paper width (cm)",
                     value = settings.width.toString(),
-                    transform = {value ->
+                    transform = { value ->
                         value.toFloatOrNull()
                     },
-                    onValueChange = {width ->
+                    onValueChange = { width ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setWidth(width)
                         }
@@ -314,10 +314,10 @@ fun PrinterCard(
                 LabelledTextField(
                     label = "Paper height (cm)",
                     value = settings.height.toString(),
-                    transform = {value ->
+                    transform = { value ->
                         value.toFloatOrNull()
                     },
-                    onValueChange = {height ->
+                    onValueChange = { height ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setHeight(height)
                         }
@@ -326,10 +326,10 @@ fun PrinterCard(
                 LabelledTextField(
                     label = "Left margin (cm)",
                     value = settings.marginLeft.toString(),
-                    transform = {cm ->
+                    transform = { cm ->
                         cm.toFloatOrNull()
                     },
-                    onValueChange = {cm ->
+                    onValueChange = { cm ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setMarginLeft(cm)
                         }
@@ -338,10 +338,10 @@ fun PrinterCard(
                 LabelledTextField(
                     label = "Top margin (cm)",
                     value = settings.marginTop.toString(),
-                    transform = {cm ->
+                    transform = { cm ->
                         cm.toFloatOrNull()
                     },
-                    onValueChange = {cm ->
+                    onValueChange = { cm ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setMarginTop(cm)
                         }
@@ -350,10 +350,10 @@ fun PrinterCard(
                 LabelledTextField(
                     label = "Right margin (cm)",
                     value = settings.marginRight.toString(),
-                    transform = {cm ->
+                    transform = { cm ->
                         cm.toFloatOrNull()
                     },
-                    onValueChange = {cm ->
+                    onValueChange = { cm ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setMarginRight(cm)
                         }
@@ -362,10 +362,10 @@ fun PrinterCard(
                 LabelledTextField(
                     label = "Bottom margin (cm)",
                     value = settings.marginBottom.toString(),
-                    transform = {cm ->
+                    transform = { cm ->
                         cm.toFloatOrNull()
                     },
-                    onValueChange = {cm ->
+                    onValueChange = { cm ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setMarginBottom(cm)
                         }
@@ -374,10 +374,10 @@ fun PrinterCard(
                 LabelledTextField(
                     label = "Speed limit (cm/s)",
                     value = settings.speedLimit.toString(),
-                    transform = {speedLimit ->
+                    transform = { speedLimit ->
                         speedLimit.toFloatOrNull()
                     },
-                    onValueChange = {speedLimit ->
+                    onValueChange = { speedLimit ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setSpeedLimit(speedLimit)
                         }
@@ -386,10 +386,10 @@ fun PrinterCard(
                 LabelledTextField(
                     label = "Cut delay (s)",
                     value = settings.cutDelay.toString(),
-                    transform = {cutDelay ->
+                    transform = { cutDelay ->
                         cutDelay.toFloatOrNull()
                     },
-                    onValueChange = {cutDelay ->
+                    onValueChange = { cutDelay ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setCutDelay(cutDelay)
                         }
@@ -398,7 +398,7 @@ fun PrinterCard(
                 LabelledSwitch(
                     label = "Cut after each page",
                     checked = settings.cut,
-                    onCheckedChange = {cut ->
+                    onCheckedChange = { cut ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setCut(cut)
                         }
@@ -414,9 +414,10 @@ fun PrinterCard(
                     Text(text = "Print test page")
                 }
             }
-        }
+        },
     )
 }
+
 @Composable
 fun SettingsScreen(
     context: PrintActivity,
@@ -428,37 +429,36 @@ fun SettingsScreen(
     OpenESCPOSPrintServiceTheme {
         Surface(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxSize(),
         ) {
             Column(
                 verticalArrangement = Arrangement.Top,
                 modifier = Modifier.verticalScroll(
                     rememberScrollState(),
-                )
+                ),
             ) {
                 Text(
                     "Bluetooth printers",
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(10.dp)
+                        .padding(10.dp),
                 )
                 if (!bluetoothAllowed) {
                     Button(
                         onClick = {
                             context.requestBluetoothPermissions()
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(text = "Request bluetooth permissions")
                     }
-
                 } else if (!bluetoothEnabled) {
                     Button(
                         onClick = {
                             context.enableBluetooth()
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(text = "Enable bluetooth")
                     }
@@ -468,14 +468,14 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(10.dp)
+                            .padding(10.dp),
                     )
                     Button(
                         onClick = {
                             val intent = Intent(ACTION_BLUETOOTH_SETTINGS)
                             startActivity(context, intent, null)
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(text = "Bluetooth settings")
                     }
@@ -495,7 +495,7 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(10.dp)
+                        .padding(10.dp),
                 )
                 settings.printersMap.filter { it.value.`interface` == Interface.TCP_IP }
                     .forEach { (uuid, printerSettings) ->
@@ -510,7 +510,7 @@ fun SettingsScreen(
                     onClick = {
                         context.addPrinterSetting()
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(text = "Add a network printer")
                 }

@@ -32,7 +32,7 @@ fun convertTransparentToWhite(bitmap: Bitmap) {
         0,
         0,
         bitmap.width,
-        bitmap.height
+        bitmap.height,
     )
     for (j in pixels.indices) {
         if (pixels[j] == Color.TRANSPARENT) {
@@ -46,7 +46,7 @@ fun convertTransparentToWhite(bitmap: Bitmap) {
         0,
         0,
         bitmap.width,
-        bitmap.height
+        bitmap.height,
     )
 }
 
@@ -78,7 +78,7 @@ fun bitmapSlices(bitmap: Bitmap, step: Int) = sequence<Bitmap> {
             0,
             y,
             width,
-            if (y + step >= height) height - y else step
+            if (y + step >= height) height - y else step,
         )
         yield(slice)
     }
@@ -103,7 +103,7 @@ fun addMargins(
     marginLeftPx: Int,
     marginTopPx: Int,
     marginRightPx: Int,
-    marginBottomPx: Int
+    marginBottomPx: Int,
 ): Bitmap {
     val result = Bitmap.createBitmap(
         marginLeftPx + bitmap.width + marginRightPx,

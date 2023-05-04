@@ -6,8 +6,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
-private val AppDarkColorScheme = darkColorScheme(
-)
+private val AppDarkColorScheme = darkColorScheme()
 
 private val AppLightColorScheme = lightColorScheme(
     /* Other default colors to override
@@ -17,7 +16,7 @@ private val AppLightColorScheme = lightColorScheme(
 @Composable
 fun OpenESCPOSPrintServiceTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val colorScheme = if (darkTheme) {
         AppDarkColorScheme
@@ -29,6 +28,6 @@ fun OpenESCPOSPrintServiceTheme(
         colorScheme = colorScheme,
         typography = Typography,
         shapes = Shapes,
-        content = content
+        content = content,
     )
 }

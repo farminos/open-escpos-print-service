@@ -37,7 +37,7 @@ abstract class PrinterDriver(
     abstract fun disconnect()
 
     fun printDocument(document: ParcelFileDescriptor) {
-        pdfToBitmaps(document, settings.dpi, settings.width, settings.height ).forEach { page ->
+        pdfToBitmaps(document, settings.dpi, settings.width, settings.height).forEach { page ->
             printBitmap(page)
         }
         document.close()
@@ -47,14 +47,14 @@ abstract class PrinterDriver(
 class EscPosDriver(
     context: Context,
     settings: PrinterSettings,
-): PrinterDriver(context, settings) {
+) : PrinterDriver(context, settings) {
     private val commands: EscPosPrinterCommands
     init {
         val connection = when (settings.`interface`) {
             Interface.BLUETOOTH -> {
                 val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(
                     context,
-                    BluetoothManager::class.java
+                    BluetoothManager::class.java,
                 )!!
                 val bluetoothAdapter = bluetoothManager.adapter
                 val device = bluetoothAdapter.getRemoteDevice(settings.address)
@@ -82,9 +82,9 @@ class EscPosDriver(
         if (settings.cut) {
             commands.cutPaper()
             if (settings.cutDelay > 0) {
-               Thread.sleep((settings.cutDelay * 1000).toLong())
+                Thread.sleep((settings.cutDelay * 1000).toLong())
                 // Reset speed limit timer
-               lastTime = System.currentTimeMillis()
+                lastTime = System.currentTimeMillis()
             }
         }
         commands.reset()
@@ -100,7 +100,7 @@ class EscPosDriver(
 class CpclDriver(
     context: Context,
     settings: PrinterSettings,
-): PrinterDriver(context, settings) {
+) : PrinterDriver(context, settings) {
     private val port: PortInterface
     private val requestHandlerThread: Thread
     private val cpclPrinter: CPCLPrinter
@@ -159,10 +159,10 @@ class CpclDriver(
 }
 
 fun createDriver(ctx: Context, printerSettings: PrinterSettings): PrinterDriver {
-    val driverClass = when(printerSettings.driver) {
+    val driverClass = when (printerSettings.driver) {
         Driver.ESC_POS -> ::EscPosDriver
         Driver.CPCL -> ::CpclDriver
-        else ->{
+        else -> {
             throw Exception("Unrecognized driver in settings")
         }
     }
