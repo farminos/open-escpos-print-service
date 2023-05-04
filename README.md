@@ -18,7 +18,7 @@ You can connect printers through Bluetooth or a TCP socket.
 
 ## Using through an intent
 If you need to print from an app that does not support printing (Firefox for Android for example) or without going through the Android printer selection screen,
-you can send an intent to this app with the folowwing format:
+you can send an intent to this app with the following format:
 
  * `scheme`: `print-intent`
  * `S.content`: a base64 encoded gzipped JSON array of strings, each string is an HTML document.
@@ -27,7 +27,7 @@ It looks like this:
 `intent://#Intent;scheme=print-intent;S.content=H4sIAAAAAAAA...XXXXX;end`
 
 ## Details
-If you have an ESC/POS label printer, enable the `Cut after each page` switch, this will make the printer go to the start of the next label (at least on the Netum ones).
+If you have an ESC/POS __label__ printer, enable the `Cut after each page` switch, this will make the printer go to the start of the next label (at least on the Netum ones).
 There are speed limits and delays that you can set in each printer settings; if your printer works well, leave these at 0.
 
 ## TODO
