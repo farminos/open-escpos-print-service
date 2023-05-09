@@ -185,7 +185,7 @@ class FarminOSPrintService : PrintService() {
             }
         } finally {
             // TODO: move this somewhere else
-            //instance.disconnect()
+            instance.disconnect()
         }
     }
 

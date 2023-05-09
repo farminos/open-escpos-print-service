@@ -164,6 +164,7 @@ class PrintActivity : ComponentActivity() {
                                 .setAddress(it.address)
                                 .setName(it.name)
                                 .setDriver(if (it.name.startsWith("CMP-")) Driver.CPCL else Driver.ESC_POS)
+                                .setKeepAlive(it.name.startsWith("CMP-")) // Keep connections alive by default for Citizen printers
                                 .build()
                             builder.putPrinters(it.address, newPrinter)
                         }
@@ -248,7 +249,7 @@ class PrintActivity : ComponentActivity() {
                 instance.printBitmap(it)
             }
         } finally {
-            //instance.disconnect()
+            instance.disconnect()
         }
     }
 

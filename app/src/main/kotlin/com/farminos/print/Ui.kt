@@ -261,6 +261,15 @@ fun PrinterCard(
                         context.updateDefaultPrinter(address = if (isDefault) uuid else "")
                     },
                 )
+                LabelledSwitch(
+                    label = "Keep connection alive",
+                    checked = settings.keepAlive,
+                    onCheckedChange = { keepAlive ->
+                        context.updatePrinterSetting(uuid = uuid) {
+                            it.setKeepAlive(keepAlive)
+                        }
+                    },
+                )
                 if (settings.`interface` == Interface.TCP_IP) {
                     LabelledTextField(
                         label = "Name",

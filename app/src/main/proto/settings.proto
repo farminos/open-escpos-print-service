@@ -29,6 +29,7 @@ message PrinterSettings {
   string address = 13; // only for tcp/ip printers
   string name = 14; // only for tcp/ip printers
   Interface interface = 15;
+  bool keep_alive = 16;
 }
 
 message Settings {
