@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.citizen.jpos.command.CPCLConst
 import com.citizen.jpos.printer.CPCLPrinter
@@ -45,20 +46,36 @@ abstract class PrinterDriver(
 }
 
 class EscPosDriver(
-    context: Context,
+    private var context: Context,
     settings: PrinterSettings,
 ) : PrinterDriver(context, settings) {
     private val commands: EscPosPrinterCommands
+
+    private fun getBluetoothSocket(address: String): BluetoothConnection {
+        val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
+        var socket = app.escPosBluetoothSockets[address]
+        if (socket == null) {
+            val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(
+                context,
+                BluetoothManager::class.java,
+            )!!
+            val bluetoothAdapter = bluetoothManager.adapter
+            val device = bluetoothAdapter.getRemoteDevice(address)
+            socket = BluetoothConnection(device)
+            app.escPosBluetoothSockets[address] = socket
+        } else {
+            if (!socket.isConnected) {
+               socket.connect()
+            }
+        }
+        return socket
+    }
+
     init {
+        Log.d("WTF", "--> ${context.applicationContext}")
         val connection = when (settings.`interface`) {
             Interface.BLUETOOTH -> {
-                val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(
-                    context,
-                    BluetoothManager::class.java,
-                )!!
-                val bluetoothAdapter = bluetoothManager.adapter
-                val device = bluetoothAdapter.getRemoteDevice(settings.address)
-                BluetoothConnection(device)
+                getBluetoothSocket(settings.address)
             }
             Interface.TCP_IP -> {
                 val addressAndPort = settings.address.split(":")
@@ -98,19 +115,32 @@ class EscPosDriver(
 }
 
 class CpclDriver(
-    context: Context,
+    private var context: Context,
     settings: PrinterSettings,
 ) : PrinterDriver(context, settings) {
     private val port: PortInterface
     private val requestHandlerThread: Thread
     private val cpclPrinter: CPCLPrinter
 
+    private fun getBluetoothSocket(address: String): BluetoothPort {
+        val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
+        var socket = app.cpclBluetoothSockets[address]
+        if (socket == null) {
+            socket = BluetoothPort.getInstance()
+            socket.connect(settings.address)
+            app.cpclBluetoothSockets[address] = socket
+        } else {
+            if (!socket.isConnected) {
+                socket.connect(address)
+            }
+        }
+        return socket!!
+    }
+
     init {
         port = when (settings.`interface`) {
             Interface.BLUETOOTH -> {
-                val p = BluetoothPort.getInstance()
-                p.connect(settings.address)
-                p
+                getBluetoothSocket(settings.address)
             }
             Interface.TCP_IP -> {
                 val p = WiFiPort.getInstance()

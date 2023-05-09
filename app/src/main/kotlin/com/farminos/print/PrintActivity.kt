@@ -248,7 +248,7 @@ class PrintActivity : ComponentActivity() {
                 instance.printBitmap(it)
             }
         } finally {
-            instance.disconnect()
+            //instance.disconnect()
         }
     }
 
