@@ -60,8 +60,6 @@ val Context.settingsDataStore: DataStore<Settings> by dataStore(
     serializer = SettingsSerializer,
 )
 
-data class Printer(val address: String, val name: String)
-
 class PrintActivity : ComponentActivity() {
     private val bluetoothBroadcastReceiver = BluetoothBroadcastReceiver(this)
     private val appCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())

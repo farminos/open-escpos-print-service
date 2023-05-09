@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.text.DecimalFormat
 
+data class Printer(val address: String, val name: String)
+
 class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService) : PrinterDiscoverySession() {
     private val scope = CoroutineScope(Dispatchers.Main)
     private var job: Job? = null
