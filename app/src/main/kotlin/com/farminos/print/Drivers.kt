@@ -210,11 +210,11 @@ class CpclDriver(
     }
 
     override fun disconnect() {
-        if (settings.keepAlive) {
-            return
-        }
         if (requestHandlerThread.isAlive) {
             requestHandlerThread.interrupt()
+        }
+        if (settings.keepAlive) {
+            return
         }
         if (socket.isConnected) {
             socket.disconnect()
