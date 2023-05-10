@@ -163,8 +163,8 @@ class PrintActivity : ComponentActivity() {
                                 .setInterface(Interface.BLUETOOTH)
                                 .setAddress(it.address)
                                 .setName(it.name)
-                                .setDriver(if (it.name.startsWith("CMP-")) Driver.CPCL else Driver.ESC_POS)
-                                .setKeepAlive(it.name.startsWith("CMP-")) // Keep connections alive by default for Citizen printers
+                                .setDriver(if (it.name.startsWith("CMP_")) Driver.CPCL else Driver.ESC_POS)
+                                .setKeepAlive(it.name.startsWith("CMP_")) // Keep connections alive by default for Citizen printers
                                 .build()
                             builder.putPrinters(it.address, newPrinter)
                         }
