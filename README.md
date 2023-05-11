@@ -23,6 +23,10 @@ you can send an intent to this app with the following format:
  * `scheme`: `print-intent`
  * `S.content`: a base64 encoded gzipped JSON array of strings, each string is an HTML document.
 
+## Using via `ACTION_SEND` or `ACTION_SEND_MULTIPLE`
+
+You can share images to this app, they will be printed on the default printer.
+
 It looks like this:
 `intent://#Intent;scheme=print-intent;S.content=H4sIAAAAAAAA...XXXXX;end`
 

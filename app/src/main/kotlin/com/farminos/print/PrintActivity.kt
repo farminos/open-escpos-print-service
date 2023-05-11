@@ -9,6 +9,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
@@ -18,6 +20,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
@@ -128,7 +131,9 @@ class PrintActivity : ComponentActivity() {
         val pages = JSONArray()
         pages.put("<html><body><div style=\"font-size: 70vw; margin: 0 auto\">\uD83D\uDDA8️</div></body></html>")
         lifecycleScope.launch(Dispatchers.IO) {
-            printHtmlOrToast(pages, uuid)
+            runOrToast {
+                printHtml(pages, uuid)
+            }
         }
     }
 
@@ -174,9 +179,9 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun printHtmlOrToast(pages: JSONArray, printerUuid: String? = null) {
+    private suspend fun runOrToast(block: suspend () -> Unit) {
         try {
-            printHtml(pages, printerUuid)
+            block()
         } catch (exception: Exception) {
             exception.printStackTrace()
             this@PrintActivity.runOnUiThread {
@@ -199,22 +204,101 @@ class PrintActivity : ComponentActivity() {
             IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED),
         )
 
-        if (intent.action.equals(Intent.ACTION_VIEW)) {
-            val content: String? = intent.getStringExtra("content")
-            if (content == null) {
-                Toast.makeText(this, "No content provided for printing", Toast.LENGTH_SHORT).show()
-            } else {
-                val pages = JSONArray(decompress(Base64.decode(content, Base64.DEFAULT)))
-                lifecycleScope.launch(Dispatchers.IO) {
-                    printHtmlOrToast(pages)
+        when {
+            intent.action.equals(Intent.ACTION_VIEW) -> {
+                val content: String? = intent.getStringExtra("content")
+                if (content == null) {
+                    Toast.makeText(this, "No content provided for printing", Toast.LENGTH_SHORT)
+                        .show()
+                    finish()
+                } else {
+                    val pages = JSONArray(decompress(Base64.decode(content, Base64.DEFAULT)))
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        runOrToast {
+                            printHtml(pages)
+                        }
+                        finish()
+                    }
                 }
             }
-            finish()
-            return
+            intent.action.equals(Intent.ACTION_SEND) && intent.type?.startsWith("image/") == true -> {
+                lifecycleScope.launch(Dispatchers.IO) {
+                    handleSendImage(intent)
+                    finish()
+                }
+            }
+            intent.action.equals(Intent.ACTION_SEND_MULTIPLE) && intent.type?.startsWith("image/") == true -> {
+                lifecycleScope.launch(Dispatchers.IO) {
+                    handleSendMultipleImages(intent)
+                    finish()
+                }
+            }
+            else -> {
+                setContent {
+                    SettingsScreen(context = this)
+                }
+            }
         }
+    }
 
-        setContent {
-            SettingsScreen(context = this)
+    private suspend fun handleSendImage(intent: Intent) {
+        IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)?.let {
+            runOrToast {
+                printBitmaps(arrayListOf(it))
+            }
+        }
+    }
+
+    private suspend fun handleSendMultipleImages(intent: Intent) {
+        IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)?.let {
+            runOrToast {
+                printBitmaps(it)
+            }
+        }
+    }
+
+    private fun scaleBitmap(bitmap: Bitmap, printerSettings: PrinterSettings): Bitmap {
+        val width = printerSettings.width
+        val marginLeft = printerSettings.marginLeft
+        val marginTop = printerSettings.marginTop
+        val marginRight = printerSettings.marginRight
+        val marginBottom = printerSettings.marginBottom
+        val dpi = printerSettings.dpi
+        val widthPx = cmToPixels(width, dpi)
+        val marginLeftPx = cmToPixels(marginLeft, dpi)
+        val marginTopPx = cmToPixels(marginTop, dpi)
+        val marginRightPx = cmToPixels(marginRight, dpi)
+        val marginBottomPx = cmToPixels(marginBottom, dpi)
+        val renderWidthPx = widthPx - marginLeftPx - marginRightPx
+        val ratio = renderWidthPx.toFloat() / bitmap.width
+        val resizedBitmap = Bitmap.createScaledBitmap(bitmap, renderWidthPx, (bitmap.height * ratio).toInt(), true)
+        return if (marginLeftPx == 0 && marginTopPx == 0 && marginRightPx == 0 && marginBottomPx == 0) {
+            resizedBitmap
+        } else {
+            addMargins(resizedBitmap, marginLeftPx, marginTopPx, marginRightPx, marginBottomPx)
+        }
+    }
+
+    private suspend fun printBitmaps(uris: ArrayList<Uri>) {
+        val settings = settingsDataStore.data.first()
+        val uuid = settings.defaultPrinter
+        if (uuid == "" || uuid == null) {
+            throw Exception("Please configure a default printer.")
+        }
+        val printerSettings = settings.printersMap[uuid]
+        if (printerSettings == null) {
+            throw Exception("Could not find printer settings.")
+        }
+        val instance = createDriver(this, printerSettings)
+        try {
+            uris.forEach {
+                val inputStream = contentResolver.openInputStream(it)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                val scaledBitmap = scaleBitmap(bitmap, printerSettings)
+                instance.printBitmap(scaledBitmap)
+            }
+        } finally {
+            instance.disconnect()
         }
     }
 
