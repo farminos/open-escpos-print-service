@@ -20,16 +20,16 @@ import kotlin.math.min
 @Throws(IOException::class)
 fun decompress(compressed: ByteArray?): String {
     val bufferSize = 32
-    val inputStream = ByteArrayInputStream(compressed)
-    val gis = GZIPInputStream(inputStream, bufferSize)
     val builder = StringBuilder()
     val data = ByteArray(bufferSize)
     var bytesRead: Int
-    while (gis.read(data).also { bytesRead = it } != -1) {
-        builder.append(String(data, 0, bytesRead))
+    ByteArrayInputStream(compressed).use { inputStream ->
+        GZIPInputStream(inputStream, bufferSize).use { gis ->
+            while (gis.read(data).also { bytesRead = it } != -1) {
+                builder.append(String(data, 0, bytesRead))
+            }
+        }
     }
-    gis.close()
-    inputStream.close()
     return builder.toString()
 }
 
@@ -127,15 +127,15 @@ fun bitmapNonEmptyTiles(bitmap: Bitmap, tileSize: Int) = sequence<Tile> {
 
 fun copyToTmpFile(cacheDir: File, fd: FileDescriptor): ParcelFileDescriptor {
     val outputFile = File.createTempFile(System.currentTimeMillis().toString(), null, cacheDir)
-    val outputStream = FileOutputStream(outputFile)
-    val inputStream = FileInputStream(fd)
     val buffer = ByteArray(8192)
     var length: Int
-    while (inputStream.read(buffer).also { length = it } > 0) {
-        outputStream.write(buffer, 0, length)
+    FileOutputStream(outputFile).use { outputStream ->
+        FileInputStream(fd).use { inputStream ->
+            while (inputStream.read(buffer).also { length = it } > 0) {
+                outputStream.write(buffer, 0, length)
+            }
+        }
     }
-    inputStream.close()
-    outputStream.close()
     return ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_ONLY)
 }
 

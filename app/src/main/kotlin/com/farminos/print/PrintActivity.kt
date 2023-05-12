@@ -292,10 +292,11 @@ class PrintActivity : ComponentActivity() {
         val instance = createDriver(this, printerSettings)
         try {
             uris.forEach {
-                val inputStream = contentResolver.openInputStream(it)
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                val scaledBitmap = scaleBitmap(bitmap, printerSettings)
-                instance.printBitmap(scaledBitmap)
+                contentResolver.openInputStream(it)?.use { inputStream ->
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    val scaledBitmap = scaleBitmap(bitmap, printerSettings)
+                    instance.printBitmap(scaledBitmap)
+                }
             }
         } finally {
             instance.disconnect()
