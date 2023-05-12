@@ -10,9 +10,6 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Matrix
-import android.graphics.RectF
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -261,61 +258,6 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
-    private fun scaleBitmap(bitmap: Bitmap, printerSettings: PrinterSettings): Bitmap {
-        val width = printerSettings.width
-        val marginLeft = printerSettings.marginLeft
-        val marginTop = printerSettings.marginTop
-        val marginRight = printerSettings.marginRight
-        val marginBottom = printerSettings.marginBottom
-        val dpi = printerSettings.dpi
-        val widthPx = cmToPixels(width, dpi)
-        val marginLeftPx = cmToPixels(marginLeft, dpi)
-        val marginTopPx = cmToPixels(marginTop, dpi)
-        val marginRightPx = cmToPixels(marginRight, dpi)
-        val marginBottomPx = cmToPixels(marginBottom, dpi)
-        val renderWidthPx = widthPx - marginLeftPx - marginRightPx
-        val ratio = renderWidthPx.toFloat() / bitmap.width
-        val resizedBitmap = Bitmap.createScaledBitmap(bitmap, renderWidthPx, (bitmap.height * ratio).toInt(), true)
-        return if (marginLeftPx == 0 && marginTopPx == 0 && marginRightPx == 0 && marginBottomPx == 0) {
-            resizedBitmap
-        } else {
-            addMargins(resizedBitmap, marginLeftPx, marginTopPx, marginRightPx, marginBottomPx)
-        }
-    }
-
-    private fun rotateBitmap(bitmap: Bitmap, orientation: Int): Bitmap {
-        val matrix = Matrix()
-        when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90, ExifInterface.ORIENTATION_TRANSVERSE -> {
-                matrix.postRotate(90f)
-                matrix.postTranslate(bitmap.height.toFloat(), 0f)
-            }
-            ExifInterface.ORIENTATION_ROTATE_180 -> {
-                matrix.postRotate(180f)
-                matrix.postTranslate(bitmap.width.toFloat(), bitmap.height.toFloat())
-            }
-            ExifInterface.ORIENTATION_ROTATE_270, ExifInterface.ORIENTATION_TRANSPOSE -> {
-                matrix.postRotate(270f)
-                matrix.postTranslate(0f, bitmap.width.toFloat())
-            }
-            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
-            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
-        }
-        // Flip for TRANSPOSE and TRANSVERSE
-        if (orientation == ExifInterface.ORIENTATION_TRANSPOSE || orientation == ExifInterface.ORIENTATION_TRANSVERSE) {
-            matrix.postScale(-1f, 1f)
-        }
-        val rotatedRect = RectF(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
-        matrix.mapRect(rotatedRect)
-        val newWidth = rotatedRect.width().toInt()
-        val newHeight = rotatedRect.height().toInt()
-        return Bitmap.createBitmap(newWidth, newHeight, bitmap.config ?: Bitmap.Config.ARGB_8888).apply {
-            val canvas = Canvas(this)
-            canvas.concat(matrix)
-            canvas.drawBitmap(bitmap, 0f, 0f, null)
-        }
-    }
-
     private suspend fun printBitmaps(uris: ArrayList<Uri>) {
         val settings = settingsDataStore.data.first()
         val uuid = settings.defaultPrinter
@@ -334,7 +276,7 @@ class PrintActivity : ComponentActivity() {
                 } ?: ExifInterface.ORIENTATION_UNDEFINED
                 contentResolver.openInputStream(it)?.use { inputStream ->
                     val bitmap = BitmapFactory.decodeStream(inputStream)
-                    val scaledBitmap = scaleBitmap(rotateBitmap(bitmap, ExifInterface.ORIENTATION_ROTATE_180), printerSettings)
+                    val scaledBitmap = scaleBitmap(rotateBitmap(bitmap, orientation), printerSettings)
                     instance.printBitmap(scaledBitmap)
                 }
             }
