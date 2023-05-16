@@ -185,8 +185,9 @@ class PrintActivity : ComponentActivity() {
             block()
         } catch (exception: Exception) {
             exception.printStackTrace()
+            val message = exception.message ?: exception.toString()
             this@PrintActivity.runOnUiThread {
-                Toast.makeText(this@PrintActivity, exception.message, Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@PrintActivity, message, Toast.LENGTH_SHORT).show()
             }
         }
     }
