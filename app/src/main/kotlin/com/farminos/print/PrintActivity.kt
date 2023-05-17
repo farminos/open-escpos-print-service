@@ -14,6 +14,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
+import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -29,6 +30,7 @@ import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.lifecycleScope
 import com.google.protobuf.InvalidProtocolBufferException
 import com.izettle.html2bitmap.Html2Bitmap
+import com.izettle.html2bitmap.Html2BitmapConfigurator
 import com.izettle.html2bitmap.content.WebViewContent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -363,6 +365,12 @@ class PrintActivity : ComponentActivity() {
         }
     }
 }
+private class Configurator : Html2BitmapConfigurator() {
+    override fun configureWebView(webview: WebView?) {
+        super.configureWebView(webview)
+        webview?.settings?.defaultTextEncodingName = "utf-8"
+    }
+}
 
 private fun renderHtml(
     context: Context,
@@ -371,6 +379,7 @@ private fun renderHtml(
 ): Bitmap? {
     return Html2Bitmap.Builder()
         .setContext(context)
+        .setConfigurator(Configurator())
         .setBitmapWidth(widthPixels)
         .setContent(WebViewContent.html(content))
         .setScreenshotDelay(0)
