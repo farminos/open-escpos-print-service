@@ -22,6 +22,15 @@ abstract class PrinterDriver(
 ) {
     protected var lastTime: Long? = null
 
+    protected fun disconnectOnError(block: () -> Unit) {
+        try {
+            block()
+        } catch (exception: Exception) {
+            disconnect(true)
+            throw exception
+        }
+    }
+
     protected fun delayForLength(cm: Float) {
         val now = System.currentTimeMillis()
         if (lastTime != null && settings.speedLimit > 0) {
@@ -34,7 +43,7 @@ abstract class PrinterDriver(
 
     abstract fun printBitmap(bitmap: Bitmap)
 
-    abstract fun disconnect()
+    abstract fun disconnect(force: Boolean = false)
 
     fun printDocument(document: ParcelFileDescriptor) {
         pdfToBitmaps(document, settings.dpi, settings.width, settings.height).forEach { page ->
@@ -99,34 +108,59 @@ class EscPosDriver(
             socket.connect()
         }
         commands = EscPosPrinterCommands(socket)
-        commands.connect()
-        commands.reset()
+        disconnectOnError {
+            commands.connect()
+            commands.reset()
+        }
     }
 
     override fun printBitmap(bitmap: Bitmap) {
         val heightPx = 128
         bitmapSlices(bitmap, heightPx).forEach {
-            commands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
+            disconnectOnError {
+                commands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
+            }
             delayForLength(pixelsToCm(heightPx, settings.dpi))
         }
         if (settings.cut) {
-            commands.cutPaper()
+            disconnectOnError {
+                commands.cutPaper()
+            }
             if (settings.cutDelay > 0) {
                 Thread.sleep((settings.cutDelay * 1000).toLong())
                 // Reset speed limit timer
                 lastTime = System.currentTimeMillis()
             }
         }
-        commands.reset()
+        disconnectOnError {
+            commands.reset()
+        }
     }
 
-    override fun disconnect() {
-        if (settings.keepAlive) {
+    override fun disconnect(force: Boolean) {
+        if (settings.keepAlive && !force) {
             return
         }
         // TODO: wait before disconnecting
         Thread.sleep(1000)
-        commands.disconnect()
+        try {
+            commands.disconnect()
+        } finally {
+            val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
+            when (settings.`interface`) {
+                Interface.BLUETOOTH -> {
+                    app.escPosBluetoothSockets.remove(settings.address)
+                }
+
+                Interface.TCP_IP -> {
+                    app.escPosTcpSockets.remove(settings.name)
+                }
+
+                else -> {
+                    throw Exception("Unknown interface")
+                }
+            }
+        }
     }
 }
 
@@ -167,6 +201,17 @@ class CpclDriver(
         return socket!!
     }
 
+    private fun printerCheck() {
+        val checkStatus = cpclPrinter.printerCheck(5000)
+        if (checkStatus != CPCLConst.CMP_SUCCESS) {
+            throw Exception("Printer check failed: $checkStatus, please try again")
+        }
+        val status = cpclPrinter.status()
+        if (status != CPCLConst.CMP_SUCCESS) {
+            throw Exception("Printer status failed: $status, please try again")
+        }
+    }
+
     init {
         socket = when (settings.`interface`) {
             Interface.BLUETOOTH -> {
@@ -184,40 +229,52 @@ class CpclDriver(
         }
         requestHandlerThread = Thread(RequestHandler())
         requestHandlerThread.start()
-
         cpclPrinter = CPCLPrinter()
-        val checkStatus = cpclPrinter.printerCheck(5000)
-        if (checkStatus != CPCLConst.CMP_SUCCESS) {
-            throw Exception("Printer check failed: $checkStatus")
-        }
-        val status = cpclPrinter.status()
-        if (status != CPCLConst.CMP_SUCCESS) {
-            throw Exception("Printer status failed: $status")
+        disconnectOnError {
+            printerCheck()
         }
     }
 
     override fun printBitmap(bitmap: Bitmap) {
         delayForLength(0F)
-        cpclPrinter.setForm(0, settings.dpi, settings.dpi, (settings.height * 100).toInt(), 1)
-        cpclPrinter.setMedia(CPCLConst.CMP_CPCL_LABEL)
+        disconnectOnError {
+            cpclPrinter.setForm(0, settings.dpi, settings.dpi, (settings.height * 100).toInt(), 1)
+            cpclPrinter.setMedia(CPCLConst.CMP_CPCL_LABEL)
+        }
         val tileSize = 36
         bitmapNonEmptyTiles(bitmap, tileSize).forEach {
             val tileBitmap = Bitmap.createBitmap(bitmap, it.x, it.y, it.width, it.height)
-            cpclPrinter.printBitmap(tileBitmap, it.x, it.y)
+            disconnectOnError {
+                cpclPrinter.printBitmap(tileBitmap, it.x, it.y)
+            }
         }
-        cpclPrinter.printForm()
+        disconnectOnError {
+            cpclPrinter.printForm()
+        }
         delayForLength(settings.height)
     }
 
-    override fun disconnect() {
+    override fun disconnect(force: Boolean) {
         if (requestHandlerThread.isAlive) {
             requestHandlerThread.interrupt()
         }
-        if (settings.keepAlive) {
+        if (settings.keepAlive && !force) {
             return
         }
         if (socket.isConnected) {
             socket.disconnect()
+        }
+        val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
+        when (settings.`interface`) {
+            Interface.BLUETOOTH -> {
+                app.cpclBluetoothSockets.remove(settings.address)
+            }
+            Interface.TCP_IP -> {
+                app.cpclTcpSockets.remove(settings.name)
+            }
+            else -> {
+                throw Exception("Unknown interface")
+            }
         }
     }
 }
