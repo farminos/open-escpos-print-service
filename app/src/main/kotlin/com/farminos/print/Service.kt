@@ -109,7 +109,7 @@ fun buildPrinterInfo(id: PrinterId, name: String, settings: PrinterSettings): Pr
     val height = settings.height
     val df = DecimalFormat("#.#")
     val mediaSizeLabel = "${df.format(width)}x${df.format(height)}cm"
-    return PrinterInfo.Builder(id, name, PrinterInfo.STATUS_IDLE)
+    return PrinterInfo.Builder(id, if (name == "") "no name" else name, PrinterInfo.STATUS_IDLE)
         .setCapabilities(
             PrinterCapabilitiesInfo.Builder(id)
                 .addMediaSize(
