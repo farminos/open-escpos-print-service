@@ -104,9 +104,9 @@ data class PrinterWithSettingsAndInfo(
 )
 
 fun buildPrinterInfo(id: PrinterId, name: String, settings: PrinterSettings): PrinterInfo {
-    val dpi = settings.dpi
-    val width = settings.width
-    val height = settings.height
+    val dpi = settings.dpi.coerceAtLeast(1)
+    val width = settings.width.coerceAtLeast(0f)
+    val height = settings.height.coerceAtLeast(0f)
     val df = DecimalFormat("#.#")
     val mediaSizeLabel = "${df.format(width)}x${df.format(height)}cm"
     return PrinterInfo.Builder(id, if (name == "") "no name" else name, PrinterInfo.STATUS_IDLE)
