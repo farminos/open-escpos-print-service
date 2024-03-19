@@ -202,7 +202,13 @@ fun scaleBitmap(bitmap: Bitmap, printerSettings: PrinterSettings): Bitmap {
 fun rotateBitmap(bitmap: Bitmap, orientation: Int): Bitmap {
     val matrix = Matrix()
     when (orientation) {
-        ExifInterface.ORIENTATION_ROTATE_90, ExifInterface.ORIENTATION_TRANSVERSE -> {
+        ExifInterface.ORIENTATION_ROTATE_90 -> {
+            matrix.postRotate(90f)
+            matrix.postTranslate(bitmap.height.toFloat(), 0f)
+        }
+        ExifInterface.ORIENTATION_TRANSVERSE -> {
+            matrix.postScale(-1f, 1f)
+            matrix.postTranslate(bitmap.width.toFloat(), 0f)
             matrix.postRotate(90f)
             matrix.postTranslate(bitmap.height.toFloat(), 0f)
         }
@@ -210,16 +216,24 @@ fun rotateBitmap(bitmap: Bitmap, orientation: Int): Bitmap {
             matrix.postRotate(180f)
             matrix.postTranslate(bitmap.width.toFloat(), bitmap.height.toFloat())
         }
-        ExifInterface.ORIENTATION_ROTATE_270, ExifInterface.ORIENTATION_TRANSPOSE -> {
+        ExifInterface.ORIENTATION_ROTATE_270 -> {
             matrix.postRotate(270f)
             matrix.postTranslate(0f, bitmap.width.toFloat())
         }
-        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
-        ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
-    }
-    // Flip for TRANSPOSE and TRANSVERSE
-    if (orientation == ExifInterface.ORIENTATION_TRANSPOSE || orientation == ExifInterface.ORIENTATION_TRANSVERSE) {
-        matrix.postScale(-1f, 1f)
+        ExifInterface.ORIENTATION_TRANSPOSE -> {
+            matrix.postScale(-1f, 1f)
+            matrix.postTranslate(bitmap.width.toFloat(), 0f)
+            matrix.postRotate(270f)
+            matrix.postTranslate(0f, bitmap.width.toFloat())
+        }
+        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> {
+            matrix.postScale(-1f, 1f)
+            matrix.postTranslate(bitmap.width.toFloat(), 0f)
+        }
+        ExifInterface.ORIENTATION_FLIP_VERTICAL -> {
+            matrix.postScale(1f, -1f)
+            matrix.postTranslate(0f, bitmap.height.toFloat())
+        }
     }
     val rotatedRect = RectF(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
     matrix.mapRect(rotatedRect)
