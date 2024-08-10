@@ -151,7 +151,7 @@ fun addMargins(
     val result = Bitmap.createBitmap(
         marginLeftPx + bitmap.width + marginRightPx,
         marginTopPx + bitmap.height + marginBottomPx,
-        bitmap.config,
+        bitmap.config ?: Bitmap.Config.ARGB_8888,
     )
     result.eraseColor(Color.WHITE)
     val canvas = Canvas(result)
