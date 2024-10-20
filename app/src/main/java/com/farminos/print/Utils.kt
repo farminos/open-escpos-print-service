@@ -114,12 +114,13 @@ data class Tile(
 
 fun bitmapTiles(
     bitmap: Bitmap,
-    tileSize: Int,
+    tileWidth: Int,
+    tileHeight: Int,
 ) = sequence<Tile> {
-    for (y in 0 until bitmap.height step tileSize) {
-        for (x in 0 until bitmap.width step tileSize) {
-            val width = min(tileSize, bitmap.width - x)
-            val height = min(tileSize, bitmap.height - y)
+    for (y in 0 until bitmap.height step tileHeight) {
+        for (x in 0 until bitmap.width step tileWidth) {
+            val width = min(tileWidth, bitmap.width - x)
+            val height = min(tileHeight, bitmap.height - y)
             yield(Tile(x, y, width, height))
         }
     }
@@ -143,11 +144,30 @@ fun bitmapNonEmptyTiles(
     bitmap: Bitmap,
     tileSize: Int,
 ) = sequence<Tile> {
-    for (tile in bitmapTiles(bitmap, tileSize)) {
+    for (tile in bitmapTiles(bitmap, tileSize, tileSize)) {
         if (!bitmapRegionIsWhite(bitmap, tile)) {
             yield(tile)
         }
     }
+}
+
+fun bitmapLastNonWhiteLine(bitmap: Bitmap): Int {
+    var lastNonWhiteLine = 0
+    for ((index, line) in bitmapTiles(bitmap, bitmap.width, 1).withIndex()) {
+        if (!bitmapRegionIsWhite(bitmap, line)) {
+            lastNonWhiteLine = index
+        }
+    }
+    return lastNonWhiteLine
+}
+
+fun bitmapCropWhiteEnd(bitmap: Bitmap): Bitmap {
+    val lastNonWhiteLine = bitmapLastNonWhiteLine(bitmap)
+    val height = lastNonWhiteLine + 1
+    if (bitmap.height == height) {
+        return bitmap
+    }
+    return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, height)
 }
 
 fun copyToTmpFile(

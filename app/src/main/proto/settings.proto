@@ -30,6 +30,7 @@ message PrinterSettings {
   string name = 14; // only for tcp/ip printers
   Interface interface = 15;
   bool keep_alive = 16;
+  bool skip_white_lines_at_page_end = 17;
 }
 
 message Settings {

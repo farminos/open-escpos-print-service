@@ -445,6 +445,15 @@ fun PrinterCard(
                         }
                     },
                 )
+                LabelledSwitch(
+                    label = "Skip white space at page end",
+                    checked = settings.skipWhiteLinesAtPageEnd,
+                    onCheckedChange = { skipWhiteLinesAtPageEnd ->
+                        context.updatePrinterSetting(uuid = uuid) {
+                            it.setSkipWhiteLinesAtPageEnd(skipWhiteLinesAtPageEnd)
+                        }
+                    },
+                )
                 Button(
                     onClick = {
                         context.printTestPage(uuid)
@@ -578,6 +587,7 @@ val DEFAULT_PRINTER_SETTINGS: PrinterSettings =
         .setMarginRight(0.0F)
         .setMarginBottom(0.0F)
         .setCut(true)
+        .setSkipWhiteLinesAtPageEnd(false)
         .setSpeedLimit(2.0F)
         .setCutDelay(0.0F)
         .build()
