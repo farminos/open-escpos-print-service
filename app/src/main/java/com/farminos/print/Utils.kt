@@ -62,7 +62,12 @@ fun convertTransparentToWhite(bitmap: Bitmap) {
     )
 }
 
-fun pdfToBitmaps(document: ParcelFileDescriptor, dpi: Int, w: Float, h: Float) = sequence<Bitmap> {
+fun pdfToBitmaps(
+    document: ParcelFileDescriptor,
+    dpi: Int,
+    w: Float,
+    h: Float,
+) = sequence<Bitmap> {
     val renderer = PdfRenderer(document)
     val pageCount = renderer.pageCount
     for (i in 0 until pageCount) {
@@ -81,24 +86,36 @@ fun pdfToBitmaps(document: ParcelFileDescriptor, dpi: Int, w: Float, h: Float) =
     renderer.close()
 }
 
-fun bitmapSlices(bitmap: Bitmap, step: Int) = sequence<Bitmap> {
+fun bitmapSlices(
+    bitmap: Bitmap,
+    step: Int,
+) = sequence<Bitmap> {
     val width: Int = bitmap.width
     val height: Int = bitmap.height
     for (y in 0 until height step step) {
-        val slice = Bitmap.createBitmap(
-            bitmap,
-            0,
-            y,
-            width,
-            if (y + step >= height) height - y else step,
-        )
+        val slice =
+            Bitmap.createBitmap(
+                bitmap,
+                0,
+                y,
+                width,
+                if (y + step >= height) height - y else step,
+            )
         yield(slice)
     }
 }
 
-data class Tile(val x: Int, val y: Int, val width: Int, val height: Int)
+data class Tile(
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int,
+)
 
-fun bitmapTiles(bitmap: Bitmap, tileSize: Int) = sequence<Tile> {
+fun bitmapTiles(
+    bitmap: Bitmap,
+    tileSize: Int,
+) = sequence<Tile> {
     for (y in 0 until bitmap.height step tileSize) {
         for (x in 0 until bitmap.width step tileSize) {
             val width = min(tileSize, bitmap.width - x)
@@ -108,7 +125,10 @@ fun bitmapTiles(bitmap: Bitmap, tileSize: Int) = sequence<Tile> {
     }
 }
 
-fun bitmapRegionIsWhite(bitmap: Bitmap, tile: Tile): Boolean {
+fun bitmapRegionIsWhite(
+    bitmap: Bitmap,
+    tile: Tile,
+): Boolean {
     val pixels = IntArray(tile.width * tile.height)
     bitmap.getPixels(pixels, 0, tile.width, tile.x, tile.y, tile.width, tile.height)
     for (pixel in pixels) {
@@ -119,7 +139,10 @@ fun bitmapRegionIsWhite(bitmap: Bitmap, tile: Tile): Boolean {
     return true
 }
 
-fun bitmapNonEmptyTiles(bitmap: Bitmap, tileSize: Int) = sequence<Tile> {
+fun bitmapNonEmptyTiles(
+    bitmap: Bitmap,
+    tileSize: Int,
+) = sequence<Tile> {
     for (tile in bitmapTiles(bitmap, tileSize)) {
         if (!bitmapRegionIsWhite(bitmap, tile)) {
             yield(tile)
@@ -127,7 +150,10 @@ fun bitmapNonEmptyTiles(bitmap: Bitmap, tileSize: Int) = sequence<Tile> {
     }
 }
 
-fun copyToTmpFile(cacheDir: File, fd: FileDescriptor): ParcelFileDescriptor {
+fun copyToTmpFile(
+    cacheDir: File,
+    fd: FileDescriptor,
+): ParcelFileDescriptor {
     val outputFile = File.createTempFile(System.currentTimeMillis().toString(), null, cacheDir)
     val buffer = ByteArray(8192)
     var length: Int
@@ -148,11 +174,12 @@ fun addMargins(
     marginRightPx: Int,
     marginBottomPx: Int,
 ): Bitmap {
-    val result = Bitmap.createBitmap(
-        marginLeftPx + bitmap.width + marginRightPx,
-        marginTopPx + bitmap.height + marginBottomPx,
-        bitmap.config ?: Bitmap.Config.ARGB_8888,
-    )
+    val result =
+        Bitmap.createBitmap(
+            marginLeftPx + bitmap.width + marginRightPx,
+            marginTopPx + bitmap.height + marginBottomPx,
+            bitmap.config ?: Bitmap.Config.ARGB_8888,
+        )
     result.eraseColor(Color.WHITE)
     val canvas = Canvas(result)
     canvas.drawBitmap(bitmap, marginLeftPx.toFloat(), marginTopPx.toFloat(), Paint())
@@ -161,23 +188,27 @@ fun addMargins(
 
 private const val INCH = 2.54F
 
-private fun cmToDots(cm: Float, dpi: Int): Int {
-    return ceil((cm / INCH) * dpi).toInt()
-}
+private fun cmToDots(
+    cm: Float,
+    dpi: Int,
+): Int = ceil((cm / INCH) * dpi).toInt()
 
-fun cmToMils(cm: Float): Int {
-    return ceil(cm / INCH * 1000).toInt()
-}
+fun cmToMils(cm: Float): Int = ceil(cm / INCH * 1000).toInt()
 
-fun cmToPixels(cm: Float, dpi: Int): Int {
-    return (cm / INCH * dpi).toInt()
-}
+fun cmToPixels(
+    cm: Float,
+    dpi: Int,
+): Int = (cm / INCH * dpi).toInt()
 
-fun pixelsToCm(pixels: Int, dpi: Int): Float {
-    return pixels.toFloat() / dpi * INCH
-}
+fun pixelsToCm(
+    pixels: Int,
+    dpi: Int,
+): Float = pixels.toFloat() / dpi * INCH
 
-fun scaleBitmap(bitmap: Bitmap, printerSettings: PrinterSettings): Bitmap {
+fun scaleBitmap(
+    bitmap: Bitmap,
+    printerSettings: PrinterSettings,
+): Bitmap {
     val width = printerSettings.width
     val marginLeft = printerSettings.marginLeft
     val marginTop = printerSettings.marginTop
@@ -199,7 +230,10 @@ fun scaleBitmap(bitmap: Bitmap, printerSettings: PrinterSettings): Bitmap {
     }
 }
 
-fun rotateBitmap(bitmap: Bitmap, orientation: Int): Bitmap {
+fun rotateBitmap(
+    bitmap: Bitmap,
+    orientation: Int,
+): Bitmap {
     val matrix = Matrix()
     when (orientation) {
         ExifInterface.ORIENTATION_ROTATE_90 -> {

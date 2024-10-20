@@ -69,30 +69,36 @@ val Context.settingsDataStore: DataStore<Settings> by dataStore(
 class PrintActivity : ComponentActivity() {
     private val bluetoothBroadcastReceiver = BluetoothBroadcastReceiver(this)
     private val appCoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val activityResultLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult(),
-    ) {
-        updatePrintersList()
-    }
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) {
-        updatePrintersList()
-    }
+    private val activityResultLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult(),
+        ) {
+            updatePrintersList()
+        }
+    private val requestPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions(),
+        ) {
+            updatePrintersList()
+        }
     var bluetoothAllowed: MutableStateFlow<Boolean> = MutableStateFlow(false)
     var bluetoothEnabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
     fun updateDefaultPrinter(address: String) {
         appCoroutineScope.launch {
             this@PrintActivity.settingsDataStore.updateData { currentSettings ->
-                currentSettings.toBuilder()
+                currentSettings
+                    .toBuilder()
                     .setDefaultPrinter(address)
                     .build()
             }
         }
     }
 
-    fun updatePrinterSetting(uuid: String, updater: (ps: PrinterSettings.Builder) -> PrinterSettings.Builder) {
+    fun updatePrinterSetting(
+        uuid: String,
+        updater: (ps: PrinterSettings.Builder) -> PrinterSettings.Builder,
+    ) {
         appCoroutineScope.launch {
             this@PrintActivity.settingsDataStore.updateData { currentSettings ->
                 val builder = currentSettings.toBuilder()
@@ -141,20 +147,22 @@ class PrintActivity : ComponentActivity() {
     }
 
     private fun updatePrintersList() {
-        val allowed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.BLUETOOTH_CONNECT,
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
+        val allowed =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                ) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
         bluetoothAllowed.update { allowed }
         if (!allowed) {
             return
         }
-        val bluetoothManager = ContextCompat.getSystemService(this, BluetoothManager::class.java)
-            ?: return
+        val bluetoothManager =
+            ContextCompat.getSystemService(this, BluetoothManager::class.java)
+                ?: return
         val bluetoothAdapter = bluetoothManager.adapter ?: return
         bluetoothEnabled.update {
             bluetoothAdapter.isEnabled
@@ -166,14 +174,15 @@ class PrintActivity : ComponentActivity() {
                     this@PrintActivity.settingsDataStore.updateData { currentSettings ->
                         val builder = currentSettings.toBuilder()
                         if (!currentSettings.printersMap.contains(it.address)) {
-                            val newPrinter = DEFAULT_PRINTER_SETTINGS
-                                .toBuilder()
-                                .setInterface(Interface.BLUETOOTH)
-                                .setAddress(it.address)
-                                .setName(it.name)
-                                .setDriver(if (it.name.startsWith("CMP_")) Driver.CPCL else Driver.ESC_POS)
-                                .setKeepAlive(it.name.startsWith("CMP_")) // Keep connections alive by default for Citizen printers
-                                .build()
+                            val newPrinter =
+                                DEFAULT_PRINTER_SETTINGS
+                                    .toBuilder()
+                                    .setInterface(Interface.BLUETOOTH)
+                                    .setAddress(it.address)
+                                    .setName(it.name)
+                                    .setDriver(if (it.name.startsWith("CMP_")) Driver.CPCL else Driver.ESC_POS)
+                                    .setKeepAlive(it.name.startsWith("CMP_")) // Keep connections alive by default for Citizen printers
+                                    .build()
                             builder.putPrinters(it.address, newPrinter)
                         }
                         return@updateData builder.build()
@@ -212,7 +221,8 @@ class PrintActivity : ComponentActivity() {
             intent.action.equals(Intent.ACTION_VIEW) -> {
                 val content: String? = intent.getStringExtra("content")
                 if (content == null) {
-                    Toast.makeText(this, "No content provided for printing", Toast.LENGTH_SHORT)
+                    Toast
+                        .makeText(this, "No content provided for printing", Toast.LENGTH_SHORT)
                         .show()
                     finish()
                 } else {
@@ -274,9 +284,10 @@ class PrintActivity : ComponentActivity() {
         val instance = createDriver(this, printerSettings)
         try {
             uris.forEach {
-                val orientation = contentResolver.openInputStream(it)?.use { inputStream ->
-                    ExifInterface(inputStream).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED)
-                } ?: ExifInterface.ORIENTATION_UNDEFINED
+                val orientation =
+                    contentResolver.openInputStream(it)?.use { inputStream ->
+                        ExifInterface(inputStream).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED)
+                    } ?: ExifInterface.ORIENTATION_UNDEFINED
                 contentResolver.openInputStream(it)?.use { inputStream ->
                     val bitmap = BitmapFactory.decodeStream(inputStream)
                     val scaledBitmap = scaleBitmap(rotateBitmap(bitmap, orientation), printerSettings)
@@ -288,7 +299,10 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun printHtml(pages: JSONArray, printerUuid: String? = null) {
+    private suspend fun printHtml(
+        pages: JSONArray,
+        printerUuid: String? = null,
+    ) {
         val settings = settingsDataStore.data.first()
         val uuid = printerUuid ?: settings.defaultPrinter
         if (uuid == "" || uuid == null) {
@@ -341,9 +355,15 @@ class PrintActivity : ComponentActivity() {
         activityResultLauncher.launch(intent)
     }
 
-    private class BluetoothBroadcastReceiver(_context: PrintActivity) : BroadcastReceiver() {
+    private class BluetoothBroadcastReceiver(
+        _context: PrintActivity,
+    ) : BroadcastReceiver() {
         val activity = _context
-        override fun onReceive(context: Context, intent: Intent) {
+
+        override fun onReceive(
+            context: Context,
+            intent: Intent,
+        ) {
             val action = intent.action
 
             if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
@@ -365,6 +385,7 @@ class PrintActivity : ComponentActivity() {
         }
     }
 }
+
 private class Configurator : Html2BitmapConfigurator() {
     override fun configureWebView(webview: WebView?) {
         super.configureWebView(webview)
@@ -376,8 +397,9 @@ private fun renderHtml(
     context: Context,
     widthPixels: Int,
     content: String,
-): Bitmap? {
-    return Html2Bitmap.Builder()
+): Bitmap? =
+    Html2Bitmap
+        .Builder()
         .setContext(context)
         .setConfigurator(Configurator())
         .setBitmapWidth(widthPixels)
@@ -386,7 +408,6 @@ private fun renderHtml(
         .setMeasureDelay(0)
         .build()
         .bitmap
-}
 
 private fun renderPages(
     context: Context,

@@ -58,23 +58,26 @@ fun ExpandableCard(
     )
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(10.dp)
-            .animateContentSize(
-                animationSpec = tween(
-                    durationMillis = 300,
-                    easing = LinearOutSlowInEasing,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(10.dp)
+                .animateContentSize(
+                    animationSpec =
+                        tween(
+                            durationMillis = 300,
+                            easing = LinearOutSlowInEasing,
+                        ),
                 ),
-            ),
         onClick = {
             open = !open
         },
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -99,7 +102,11 @@ fun ExpandableCard(
         }
     }
 }
-data class Option(val value: Int, val label: String)
+
+data class Option(
+    val value: Int,
+    val label: String,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -134,13 +141,14 @@ fun MenuSelect(
             // This box is rendered on top of the TextField above and catches the clicks as we
             // cannot have clickable TextFields that are not disabled
             Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .clickable(
-                        onClick = {
-                            expanded = true
-                        },
-                    ),
+                modifier =
+                    Modifier
+                        .matchParentSize()
+                        .clickable(
+                            onClick = {
+                                expanded = true
+                            },
+                        ),
             )
             DropdownMenu(
                 expanded = expanded,
@@ -308,10 +316,11 @@ fun PrinterCard(
                     Text(text = "Delete this printer")
                 }
                 MenuSelect(
-                    options = arrayOf(
-                        Option(value = Driver.ESC_POS_VALUE, label = "ESC / POS"),
-                        Option(value = Driver.CPCL_VALUE, label = "Citizen CPCL"),
-                    ),
+                    options =
+                        arrayOf(
+                            Option(value = Driver.ESC_POS_VALUE, label = "ESC / POS"),
+                            Option(value = Driver.CPCL_VALUE, label = "Citizen CPCL"),
+                        ),
                     selectedValue = settings.driverValue,
                     onSelect = { value ->
                         context.updatePrinterSetting(uuid = uuid) {
@@ -451,30 +460,31 @@ fun PrinterCard(
 }
 
 @Composable
-fun SettingsScreen(
-    context: PrintActivity,
-) {
+fun SettingsScreen(context: PrintActivity) {
     val settings: Settings by context.settingsDataStore.data.collectAsState(Settings.getDefaultInstance())
     val bluetoothAllowed by context.bluetoothAllowed.collectAsState()
     val bluetoothEnabled by context.bluetoothEnabled.collectAsState()
 
     OpenESCPOSPrintServiceTheme {
         Surface(
-            modifier = Modifier
-                .fillMaxSize(),
+            modifier =
+                Modifier
+                    .fillMaxSize(),
         ) {
             Column(
                 verticalArrangement = Arrangement.Top,
-                modifier = Modifier.verticalScroll(
-                    rememberScrollState(),
-                ),
+                modifier =
+                    Modifier.verticalScroll(
+                        rememberScrollState(),
+                    ),
             ) {
                 Text(
                     "Bluetooth printers",
                     style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
                 )
                 if (!bluetoothAllowed) {
                     Button(
@@ -498,9 +508,10 @@ fun SettingsScreen(
                     Text(
                         "There are no paired Bluetooth printers, you need to pair a printer in the Bluetooth setting first.",
                         style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(10.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
                     )
                     Button(
                         onClick = {
@@ -512,7 +523,8 @@ fun SettingsScreen(
                         Text(text = "Bluetooth settings")
                     }
                 } else {
-                    settings.printersMap.filter { it.value.`interface` == Interface.BLUETOOTH }
+                    settings.printersMap
+                        .filter { it.value.`interface` == Interface.BLUETOOTH }
                         .forEach { (uuid, printerSettings) ->
                             PrinterCard(
                                 context = context,
@@ -525,11 +537,13 @@ fun SettingsScreen(
                 Text(
                     "Network printers",
                     style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
                 )
-                settings.printersMap.filter { it.value.`interface` == Interface.TCP_IP }
+                settings.printersMap
+                    .filter { it.value.`interface` == Interface.TCP_IP }
                     .forEach { (uuid, printerSettings) ->
                         PrinterCard(
                             context = context,
@@ -551,17 +565,19 @@ fun SettingsScreen(
     }
 }
 
-val DEFAULT_PRINTER_SETTINGS: PrinterSettings = PrinterSettings.newBuilder()
-    .setEnabled(false)
-    .setDriver(Driver.ESC_POS)
-    .setDpi(203)
-    .setWidth(5.0F)
-    .setHeight(8.0F)
-    .setMarginLeft(0.0F)
-    .setMarginTop(0.0F)
-    .setMarginRight(0.0F)
-    .setMarginBottom(0.0F)
-    .setCut(true)
-    .setSpeedLimit(2.0F)
-    .setCutDelay(0.0F)
-    .build()
+val DEFAULT_PRINTER_SETTINGS: PrinterSettings =
+    PrinterSettings
+        .newBuilder()
+        .setEnabled(false)
+        .setDriver(Driver.ESC_POS)
+        .setDpi(203)
+        .setWidth(5.0F)
+        .setHeight(8.0F)
+        .setMarginLeft(0.0F)
+        .setMarginTop(0.0F)
+        .setMarginRight(0.0F)
+        .setMarginBottom(0.0F)
+        .setCut(true)
+        .setSpeedLimit(2.0F)
+        .setCutDelay(0.0F)
+        .build()

@@ -23,41 +23,49 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.text.DecimalFormat
 
-data class Printer(val address: String, val name: String)
+data class Printer(
+    val address: String,
+    val name: String,
+)
 
-class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService) : PrinterDiscoverySession() {
+class FarminOSPrinterDiscoverySession(
+    private val context: FarminOSPrintService,
+) : PrinterDiscoverySession() {
     private val scope = CoroutineScope(Dispatchers.Main)
     private var job: Job? = null
 
     private suspend fun settingsObserver() {
-        context.settingsDataStore.data.map { settings ->
-            val oldIds = printers.map { it.id }
-            val newPrinters = listPrinters(settings)
-            val newPrinterIds = newPrinters.map { it.info.id }
-            // remove no longer present printers
-            oldIds.forEach {
-                if (!newPrinterIds.contains(it)) {
-                    context.printersMap.remove(it)
-                    removePrinters(listOf(it))
+        context.settingsDataStore.data
+            .map { settings ->
+                val oldIds = printers.map { it.id }
+                val newPrinters = listPrinters(settings)
+                val newPrinterIds = newPrinters.map { it.info.id }
+                // remove no longer present printers
+                oldIds.forEach {
+                    if (!newPrinterIds.contains(it)) {
+                        context.printersMap.remove(it)
+                        removePrinters(listOf(it))
+                    }
                 }
-            }
-            // add or update printers
-            newPrinters.forEach {
-                context.printersMap[it.info.id] = it
-                addPrinters(listOf(it.info))
-            }
-        }.collect()
+                // add or update printers
+                newPrinters.forEach {
+                    context.printersMap[it.info.id] = it
+                    addPrinters(listOf(it.info))
+                }
+            }.collect()
     }
 
     override fun onStartPrinterDiscovery(priorityList: MutableList<PrinterId>) {
-        job = scope.launch {
-            settingsObserver()
-        }
+        job =
+            scope.launch {
+                settingsObserver()
+            }
     }
 
     private fun listPrinters(settings: Settings): List<PrinterWithSettingsAndInfo> {
-        val bluetoothManager = ContextCompat.getSystemService(context, BluetoothManager::class.java)
-            ?: return listOf()
+        val bluetoothManager =
+            ContextCompat.getSystemService(context, BluetoothManager::class.java)
+                ?: return listOf()
         val bluetoothAdapter = bluetoothManager.adapter
         if (ActivityCompat.checkSelfPermission(
                 context,
@@ -66,23 +74,24 @@ class FarminOSPrinterDiscoverySession(private val context: FarminOSPrintService)
         ) {
             return listOf()
         }
-        val printers = settings.printersMap
-            .filterValues { it.enabled }
-            .map { (uuid, printerSettings) ->
-                val id = context.generatePrinterId(uuid)
-                val btPrinter = bluetoothAdapter.bondedDevices.find { it.address == uuid }
-                val address = btPrinter?.address ?: uuid
-                val name = btPrinter?.name ?: printerSettings.name
-                PrinterWithSettingsAndInfo(
-                    printer = Printer(address = address, name = name),
-                    settings = printerSettings,
-                    info = buildPrinterInfo(id, name, printerSettings),
-                    isDefault = uuid == settings.defaultPrinter,
-                )
-            }
-            .sortedBy { if (it.isDefault) 0 else 1 }
+        val printers =
+            settings.printersMap
+                .filterValues { it.enabled }
+                .map { (uuid, printerSettings) ->
+                    val id = context.generatePrinterId(uuid)
+                    val btPrinter = bluetoothAdapter.bondedDevices.find { it.address == uuid }
+                    val address = btPrinter?.address ?: uuid
+                    val name = btPrinter?.name ?: printerSettings.name
+                    PrinterWithSettingsAndInfo(
+                        printer = Printer(address = address, name = name),
+                        settings = printerSettings,
+                        info = buildPrinterInfo(id, name, printerSettings),
+                        isDefault = uuid == settings.defaultPrinter,
+                    )
+                }.sortedBy { if (it.isDefault) 0 else 1 }
         return printers
     }
+
     override fun onStopPrinterDiscovery() {
         job?.cancel("Printer discovery stopped")
     }
@@ -103,15 +112,21 @@ data class PrinterWithSettingsAndInfo(
     val isDefault: Boolean,
 )
 
-fun buildPrinterInfo(id: PrinterId, name: String, settings: PrinterSettings): PrinterInfo {
+fun buildPrinterInfo(
+    id: PrinterId,
+    name: String,
+    settings: PrinterSettings,
+): PrinterInfo {
     val dpi = settings.dpi.coerceAtLeast(1)
     val width = settings.width.coerceAtLeast(0.1f)
     val height = settings.height.coerceAtLeast(0.1f)
     val df = DecimalFormat("#.#")
     val mediaSizeLabel = "${df.format(width)}x${df.format(height)}cm"
-    return PrinterInfo.Builder(id, if (name == "") "no name" else name, PrinterInfo.STATUS_IDLE)
+    return PrinterInfo
+        .Builder(id, if (name == "") "no name" else name, PrinterInfo.STATUS_IDLE)
         .setCapabilities(
-            PrinterCapabilitiesInfo.Builder(id)
+            PrinterCapabilitiesInfo
+                .Builder(id)
                 .addMediaSize(
                     PrintAttributes.MediaSize(
                         mediaSizeLabel,
@@ -120,24 +135,20 @@ fun buildPrinterInfo(id: PrinterId, name: String, settings: PrinterSettings): Pr
                         cmToMils(height),
                     ),
                     true,
-                )
-                .addResolution(
+                ).addResolution(
                     Resolution("${dpi}dpi", "${dpi}dpi", dpi, dpi),
                     true,
-                )
-                .setColorModes(
+                ).setColorModes(
                     PrintAttributes.COLOR_MODE_MONOCHROME,
                     PrintAttributes.COLOR_MODE_MONOCHROME,
-                )
-                .setMinMargins(
+                ).setMinMargins(
                     Margins(
                         cmToMils(settings.marginLeft),
                         cmToMils(settings.marginTop),
                         cmToMils(settings.marginRight),
                         cmToMils(settings.marginBottom),
                     ),
-                )
-                .build(),
+                ).build(),
         ).build()
 }
 

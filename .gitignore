@@ -1,9 +1,9 @@
+*.iml
 app/debug
 app/release
-*.iml
 .gradle
 /local.properties
-.idea
+.idea/workspace.xml
 .DS_Store
 /build
 /captures

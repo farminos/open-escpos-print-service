@@ -66,10 +66,11 @@ class EscPosDriver(
             socket = app.escPosBluetoothSockets[settings.address]
         }
         if (socket == null) {
-            val bluetoothManager: BluetoothManager = ContextCompat.getSystemService(
-                context,
-                BluetoothManager::class.java,
-            )!!
+            val bluetoothManager: BluetoothManager =
+                ContextCompat.getSystemService(
+                    context,
+                    BluetoothManager::class.java,
+                )!!
             val bluetoothAdapter = bluetoothManager.adapter
             val device = bluetoothAdapter.getRemoteDevice(settings.address)
             socket = BluetoothConnection(device)
@@ -93,17 +94,18 @@ class EscPosDriver(
     }
 
     init {
-        val socket = when (settings.`interface`) {
-            Interface.BLUETOOTH -> {
-                getBluetoothSocket(settings)
+        val socket =
+            when (settings.`interface`) {
+                Interface.BLUETOOTH -> {
+                    getBluetoothSocket(settings)
+                }
+                Interface.TCP_IP -> {
+                    getTcpSocket(settings)
+                }
+                else -> {
+                    throw Exception("Unknown interface")
+                }
             }
-            Interface.TCP_IP -> {
-                getTcpSocket(settings)
-            }
-            else -> {
-                throw Exception("Unknown interface")
-            }
-        }
         if (!socket.isConnected) {
             socket.connect()
         }
@@ -118,7 +120,7 @@ class EscPosDriver(
         val heightPx = 128
         bitmapSlices(bitmap, heightPx).forEach {
             disconnectOnError {
-                commands.printImage(EscPosPrinterCommands.bitmapToBytes(it))
+                commands.printImage(EscPosPrinterCommands.bitmapToBytes(it, true))
             }
             delayForLength(pixelsToCm(heightPx, settings.dpi))
         }
@@ -213,17 +215,18 @@ class CpclDriver(
     }
 
     init {
-        socket = when (settings.`interface`) {
-            Interface.BLUETOOTH -> {
-                getBluetoothSocket(settings)
+        socket =
+            when (settings.`interface`) {
+                Interface.BLUETOOTH -> {
+                    getBluetoothSocket(settings)
+                }
+                Interface.TCP_IP -> {
+                    getTcpSocket(settings)
+                }
+                else -> {
+                    throw Exception("Unknown interface")
+                }
             }
-            Interface.TCP_IP -> {
-                getTcpSocket(settings)
-            }
-            else -> {
-                throw Exception("Unknown interface")
-            }
-        }
         while (!socket.isConnected) {
             Thread.sleep(100)
         }
@@ -279,13 +282,17 @@ class CpclDriver(
     }
 }
 
-fun createDriver(ctx: Context, printerSettings: PrinterSettings): PrinterDriver {
-    val driverClass = when (printerSettings.driver) {
-        Driver.ESC_POS -> ::EscPosDriver
-        Driver.CPCL -> ::CpclDriver
-        else -> {
-            throw Exception("Unrecognized driver in settings")
+fun createDriver(
+    ctx: Context,
+    printerSettings: PrinterSettings,
+): PrinterDriver {
+    val driverClass =
+        when (printerSettings.driver) {
+            Driver.ESC_POS -> ::EscPosDriver
+            Driver.CPCL -> ::CpclDriver
+            else -> {
+                throw Exception("Unrecognized driver in settings")
+            }
         }
-    }
     return driverClass(ctx, printerSettings)
 }
