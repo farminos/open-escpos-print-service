@@ -23,7 +23,7 @@ protobuf {
 
 android {
     namespace = "com.farminos.print"
-    compileSdk = 35
+    compileSdk = 36
 
     buildFeatures {
         compose = true
@@ -35,7 +35,7 @@ android {
     defaultConfig {
         applicationId = "com.farminos.print"
         minSdk = 21
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 22
         versionName = "1.2.0"
 
@@ -59,7 +59,7 @@ android {
         jvmTarget = "17"
     }
 
-    buildToolsVersion = "34.0.0"
+    buildToolsVersion = "35.0.0"
 }
 
 dependencies {
