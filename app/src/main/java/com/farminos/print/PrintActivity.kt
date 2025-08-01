@@ -226,7 +226,19 @@ class PrintActivity : ComponentActivity() {
                         .show()
                     finish()
                 } else {
-                    val pages = JSONArray(decompress(Base64.decode(content, Base64.DEFAULT)))
+                    val pages: JSONArray? =
+                        try {
+                            JSONArray(decompress(Base64.decode(content, Base64.DEFAULT)))
+                        } catch (exception: Exception) {
+                            Toast
+                                .makeText(this, "Could not decode url: ${exception.message}", Toast.LENGTH_SHORT)
+                                .show()
+                            null
+                        }
+                    if (pages == null) {
+                        finish()
+                        return
+                    }
                     lifecycleScope.launch(Dispatchers.IO) {
                         runOrToast {
                             printHtml(pages)
