@@ -34,7 +34,7 @@ android {
 
     defaultConfig {
         applicationId = "com.farminos.print"
-        minSdk = 21
+        minSdk = 23
         targetSdk = 36
         versionCode = 24
         versionName = "1.2.2"
