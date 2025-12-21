@@ -3,9 +3,11 @@ package com.farminos.print
 import android.Manifest
 import android.bluetooth.BluetoothManager
 import android.content.pm.PackageManager
+import android.os.ParcelFileDescriptor
 import android.print.PrintAttributes
 import android.print.PrintAttributes.Margins
 import android.print.PrintAttributes.Resolution
+import android.print.PrintJobInfo
 import android.print.PrinterCapabilitiesInfo
 import android.print.PrinterId
 import android.print.PrinterInfo
@@ -21,6 +23,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.DecimalFormat
 
 data class Printer(
@@ -155,6 +158,10 @@ fun buildPrinterInfo(
 class FarminOSPrintService : PrintService() {
     val printersMap: MutableMap<PrinterId, PrinterWithSettingsAndInfo> = mutableMapOf()
     private lateinit var session: FarminOSPrinterDiscoverySession
+    private val serviceScope =
+        CoroutineScope(
+            Dispatchers.IO,
+        )
 
     override fun onCreatePrinterDiscoverySession(): PrinterDiscoverySession {
         session = FarminOSPrinterDiscoverySession(this)
@@ -163,35 +170,53 @@ class FarminOSPrintService : PrintService() {
 
     override fun onPrintJobQueued(printJob: PrintJob) {
         // TODO: actual queue
-        printJob.start()
-        try {
-            printDocument(printJob)
-            printJob.complete()
-        } catch (exception: Exception) {
-            printJob.fail(exception.message)
+        serviceScope.launch {
+            try {
+                withContext(Dispatchers.Main) {
+                    printJob.start()
+                }
+                val info =
+                    withContext(Dispatchers.Main) {
+                        printJob.info
+                    }
+                val document =
+                    withContext(Dispatchers.Main) {
+                        printJob.document.data
+                    }
+                printDocument(info, document)
+                withContext(Dispatchers.Main) {
+                    printJob.complete()
+                }
+            } catch (exception: Exception) {
+                withContext(Dispatchers.Main) {
+                    printJob.fail(exception.message)
+                }
+            }
         }
     }
 
-    private fun printDocument(printJob: PrintJob) {
-        val printerId = printJob.info.printerId
+    private fun printDocument(
+        info: PrintJobInfo,
+        document: ParcelFileDescriptor?,
+    ) {
+        val printerId = info.printerId
         val printer = printersMap[printerId]
-        val document = printJob.document.data
         if (printer == null) {
             throw Exception("No printer found")
         }
         if (document == null) {
             throw Exception("No document found")
         }
-        // we copy the document in the main thread, otherwise you get: java.lang.IllegalAccessError
-        val copy = copyToTmpFile(this.cacheDir, document.fileDescriptor)
-        val mediaSize = printJob.info.attributes.mediaSize
-        val resolution = printJob.info.attributes.resolution
+        // copy to make the file seekable
+        val copy = copyToTmpFile(this@FarminOSPrintService.cacheDir, document.fileDescriptor)
+        val mediaSize = info.attributes.mediaSize
+        val resolution = info.attributes.resolution
         if (mediaSize == null || resolution == null) {
             throw Exception("No media size or resolution in print job info")
         }
-        val instance = createDriver(this, printer.settings)
+        val instance = createDriver(this@FarminOSPrintService, printer.settings)
         try {
-            for (i in 0 until printJob.info.copies) {
+            for (i in 0 until info.copies) {
                 instance.printDocument(copy)
             }
         } finally {
@@ -200,8 +225,8 @@ class FarminOSPrintService : PrintService() {
         }
     }
 
-    override fun onRequestCancelPrintJob(printJob: PrintJob) {
+    override fun onRequestCancelPrintJob(printJob: PrintJob?) {
         // TODO: remove from queue or cancel if running
-        printJob.cancel()
+        printJob?.cancel()
     }
 }
