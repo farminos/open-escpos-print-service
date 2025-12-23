@@ -17,7 +17,7 @@ You can connect printers through Bluetooth or a TCP socket.
  * you should now be able to print from any Android app (Chromium, image gallery, etc...).
 
 ## Using through an intent
-If you need to print from an app that does not support printing (Firefox for Android for example) or without going through the Android printer selection screen,
+If you need to print from an app that does not support printing, or without going through the Android printer selection screen,
 you can send an intent to this app with the following format:
 
  * `scheme`: `print-intent`
