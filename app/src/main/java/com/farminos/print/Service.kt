@@ -1,6 +1,7 @@
 package com.farminos.print
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.pm.PackageManager
 import android.os.ParcelFileDescriptor
@@ -65,11 +66,7 @@ class FarminOSPrinterDiscoverySession(
             }
     }
 
-    private fun listPrinters(settings: Settings): List<PrinterWithSettingsAndInfo> {
-        val bluetoothManager =
-            ContextCompat.getSystemService(context, BluetoothManager::class.java)
-                ?: return listOf()
-        val bluetoothAdapter = bluetoothManager.adapter
+    private fun listBluetoothPrinters(settings: Settings): List<PrinterWithSettingsAndInfo> {
         if (ActivityCompat.checkSelfPermission(
                 context,
                 Manifest.permission.BLUETOOTH_CONNECT,
@@ -77,14 +74,15 @@ class FarminOSPrinterDiscoverySession(
         ) {
             return listOf()
         }
+        val bluetoothAdapter = ContextCompat.getSystemService(context, BluetoothManager::class.java)?.adapter ?: return listOf()
         val printers =
             settings.printersMap
-                .filterValues { it.enabled }
-                .map { (uuid, printerSettings) ->
+                .filterValues { it.enabled && it.`interface` == Interface.BLUETOOTH }
+                .mapNotNull { (uuid, printerSettings) ->
                     val id = context.generatePrinterId(uuid)
-                    val btPrinter = bluetoothAdapter.bondedDevices.find { it.address == uuid }
-                    val address = btPrinter?.address ?: uuid
-                    val name = btPrinter?.name ?: printerSettings.name
+                    val btPrinter = bluetoothAdapter.bondedDevices.find { it.address == uuid } ?: return@mapNotNull null
+                    val address = btPrinter.address
+                    val name = btPrinter.name
                     PrinterWithSettingsAndInfo(
                         printer = Printer(address = address, name = name),
                         settings = printerSettings,
@@ -94,6 +92,29 @@ class FarminOSPrinterDiscoverySession(
                 }.sortedBy { if (it.isDefault) 0 else 1 }
         return printers
     }
+
+    private fun listNetworkPrinters(settings: Settings): List<PrinterWithSettingsAndInfo> {
+        val printers =
+            settings.printersMap
+                .filterValues { it.enabled && it.`interface` == Interface.TCP_IP }
+                .mapNotNull { (uuid, printerSettings) ->
+                    val id = context.generatePrinterId(uuid)
+                    val address = uuid
+                    val name = printerSettings.name
+                    PrinterWithSettingsAndInfo(
+                        printer = Printer(address = address, name = name),
+                        settings = printerSettings,
+                        info = buildPrinterInfo(id, name, printerSettings),
+                        isDefault = uuid == settings.defaultPrinter,
+                    )
+                }
+        return printers
+    }
+
+    private fun listPrinters(settings: Settings): List<PrinterWithSettingsAndInfo> =
+        (this.listBluetoothPrinters(settings) + this.listNetworkPrinters(settings)).sortedBy {
+            if (it.isDefault) 0 else 1
+        }
 
     override fun onStopPrinterDiscovery() {
         job?.cancel("Printer discovery stopped")
