@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.protobuf.gradle.plugin)
     alias(libs.plugins.kotlinter.plugin)
@@ -23,7 +22,7 @@ protobuf {
 
 android {
     namespace = "com.farminos.print"
-    compileSdk = 36
+    compileSdk = 37
 
     buildFeatures {
         compose = true
@@ -35,7 +34,7 @@ android {
     defaultConfig {
         applicationId = "com.farminos.print"
         minSdk = 23
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 26
         versionName = "1.2.4"
 
@@ -55,11 +54,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
 
-    buildToolsVersion = "35.0.0"
+    buildToolsVersion = "37.0.0"
+    compileSdkMinor = 1
 }
 
 dependencies {
