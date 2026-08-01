@@ -498,7 +498,7 @@ fun SettingsScreen(context: PrintActivity) {
                         onClick = {
                             context.requestBluetoothPermissions()
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(10.dp),
                     ) {
                         Text(text = "Request bluetooth permissions")
                     }
@@ -507,7 +507,7 @@ fun SettingsScreen(context: PrintActivity) {
                         onClick = {
                             context.enableBluetooth()
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(10.dp),
                     ) {
                         Text(text = "Enable bluetooth")
                     }
@@ -525,7 +525,7 @@ fun SettingsScreen(context: PrintActivity) {
                             val intent = Intent(ACTION_BLUETOOTH_SETTINGS)
                             context.startActivity(intent, null)
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(10.dp),
                     ) {
                         Text(text = "Bluetooth settings")
                     }
@@ -563,7 +563,7 @@ fun SettingsScreen(context: PrintActivity) {
                     onClick = {
                         context.addPrinterSetting()
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(10.dp),
                 ) {
                     Text(text = "Add a network printer")
                 }
