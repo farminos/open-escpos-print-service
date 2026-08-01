@@ -1,7 +1,6 @@
 package com.farminos.print
 
 import android.Manifest
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.pm.PackageManager
 import android.os.ParcelFileDescriptor

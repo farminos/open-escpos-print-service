@@ -18,6 +18,8 @@ import java.io.IOException
 import java.util.zip.GZIPInputStream
 import kotlin.math.ceil
 import kotlin.math.min
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
 
 @Throws(IOException::class)
 fun decompress(compressed: ByteArray?): String {
@@ -67,7 +69,7 @@ fun pdfToBitmaps(
     dpi: Int,
     w: Float,
     h: Float,
-) = sequence<Bitmap> {
+) = sequence {
     val renderer = PdfRenderer(document)
     val pageCount = renderer.pageCount
     for (i in 0 until pageCount) {
@@ -77,7 +79,7 @@ fun pdfToBitmaps(
         val transform = Matrix()
         val ratio = width.toFloat() / page.width
         transform.postScale(ratio, ratio)
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(width, height)
         convertTransparentToWhite(bitmap)
         page.render(bitmap, null, transform, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
         yield(bitmap)
@@ -89,7 +91,7 @@ fun pdfToBitmaps(
 fun bitmapSlices(
     bitmap: Bitmap,
     step: Int,
-) = sequence<Bitmap> {
+) = sequence {
     val width: Int = bitmap.width
     val height: Int = bitmap.height
     for (y in 0 until height step step) {
@@ -116,7 +118,7 @@ fun bitmapTiles(
     bitmap: Bitmap,
     tileWidth: Int,
     tileHeight: Int,
-) = sequence<Tile> {
+) = sequence {
     for (y in 0 until bitmap.height step tileHeight) {
         for (x in 0 until bitmap.width step tileWidth) {
             val width = min(tileWidth, bitmap.width - x)
@@ -143,7 +145,7 @@ fun bitmapRegionIsWhite(
 fun bitmapNonEmptyTiles(
     bitmap: Bitmap,
     tileSize: Int,
-) = sequence<Tile> {
+) = sequence {
     for (tile in bitmapTiles(bitmap, tileSize, tileSize)) {
         if (!bitmapRegionIsWhite(bitmap, tile)) {
             yield(tile)
@@ -195,7 +197,7 @@ fun addMargins(
     marginBottomPx: Int,
 ): Bitmap {
     val result =
-        Bitmap.createBitmap(
+        createBitmap(
             marginLeftPx + bitmap.width + marginRightPx,
             marginTopPx + bitmap.height + marginBottomPx,
             bitmap.config ?: Bitmap.Config.ARGB_8888,
@@ -242,7 +244,7 @@ fun scaleBitmap(
     val marginBottomPx = cmToPixels(marginBottom, dpi)
     val renderWidthPx = widthPx - marginLeftPx - marginRightPx
     val ratio = renderWidthPx.toFloat() / bitmap.width
-    val resizedBitmap = Bitmap.createScaledBitmap(bitmap, renderWidthPx, (bitmap.height * ratio).toInt(), true)
+    val resizedBitmap = bitmap.scale(renderWidthPx, (bitmap.height * ratio).toInt())
     return if (marginLeftPx == 0 && marginTopPx == 0 && marginRightPx == 0 && marginBottomPx == 0) {
         resizedBitmap
     } else {
@@ -293,7 +295,7 @@ fun rotateBitmap(
     matrix.mapRect(rotatedRect)
     val newWidth = rotatedRect.width().toInt()
     val newHeight = rotatedRect.height().toInt()
-    return Bitmap.createBitmap(newWidth, newHeight, bitmap.config ?: Bitmap.Config.ARGB_8888).apply {
+    return createBitmap(newWidth, newHeight, bitmap.config ?: Bitmap.Config.ARGB_8888).apply {
         val canvas = Canvas(this)
         canvas.concat(matrix)
         canvas.drawBitmap(bitmap, 0f, 0f, null)

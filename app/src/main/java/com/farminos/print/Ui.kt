@@ -42,7 +42,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat.startActivity
 import com.farminos.print.ui.theme.OpenESCPOSPrintServiceTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -249,7 +248,7 @@ fun PrinterCard(
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setEnabled(enabled)
                         }
-                        if (!enabled && uuid === defaultPrinterAddress) {
+                        if (!enabled && uuid == defaultPrinterAddress) {
                             // disabled printer can't be set as default
                             context.updateDefaultPrinter("")
                         }
@@ -524,7 +523,7 @@ fun SettingsScreen(context: PrintActivity) {
                     Button(
                         onClick = {
                             val intent = Intent(ACTION_BLUETOOTH_SETTINGS)
-                            startActivity(context, intent, null)
+                            context.startActivity(intent, null)
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
