@@ -513,7 +513,7 @@ fun SettingsScreen(context: PrintActivity) {
                     }
                 } else if (settings.printersMap.isEmpty()) {
                     Text(
-                        "There are no paired Bluetooth printers, you need to pair a printer in the Bluetooth setting first.",
+                        "There are no paired Bluetooth printers, you need to pair a printer in the Bluetooth settings first.",
                         style = MaterialTheme.typography.bodyMedium,
                         modifier =
                             Modifier
