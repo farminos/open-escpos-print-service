@@ -8,6 +8,8 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -18,8 +20,6 @@ import java.io.IOException
 import java.util.zip.GZIPInputStream
 import kotlin.math.ceil
 import kotlin.math.min
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.scale
 
 @Throws(IOException::class)
 fun decompress(compressed: ByteArray?): String {
@@ -262,30 +262,36 @@ fun rotateBitmap(
             matrix.postRotate(90f)
             matrix.postTranslate(bitmap.height.toFloat(), 0f)
         }
+
         ExifInterface.ORIENTATION_TRANSVERSE -> {
             matrix.postScale(-1f, 1f)
             matrix.postTranslate(bitmap.width.toFloat(), 0f)
             matrix.postRotate(90f)
             matrix.postTranslate(bitmap.height.toFloat(), 0f)
         }
+
         ExifInterface.ORIENTATION_ROTATE_180 -> {
             matrix.postRotate(180f)
             matrix.postTranslate(bitmap.width.toFloat(), bitmap.height.toFloat())
         }
+
         ExifInterface.ORIENTATION_ROTATE_270 -> {
             matrix.postRotate(270f)
             matrix.postTranslate(0f, bitmap.width.toFloat())
         }
+
         ExifInterface.ORIENTATION_TRANSPOSE -> {
             matrix.postScale(-1f, 1f)
             matrix.postTranslate(bitmap.width.toFloat(), 0f)
             matrix.postRotate(270f)
             matrix.postTranslate(0f, bitmap.width.toFloat())
         }
+
         ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> {
             matrix.postScale(-1f, 1f)
             matrix.postTranslate(bitmap.width.toFloat(), 0f)
         }
+
         ExifInterface.ORIENTATION_FLIP_VERTICAL -> {
             matrix.postScale(1f, -1f)
             matrix.postTranslate(0f, bitmap.height.toFloat())

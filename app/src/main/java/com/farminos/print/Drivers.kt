@@ -100,9 +100,11 @@ class EscPosDriver(
                 Interface.BLUETOOTH -> {
                     getBluetoothSocket(settings)
                 }
+
                 Interface.TCP_IP -> {
                     getTcpSocket(settings)
                 }
+
                 else -> {
                     throw Exception("Unknown interface")
                 }
@@ -221,9 +223,11 @@ class CpclDriver(
                 Interface.BLUETOOTH -> {
                     getBluetoothSocket(settings)
                 }
+
                 Interface.TCP_IP -> {
                     getTcpSocket(settings)
                 }
+
                 else -> {
                     throw Exception("Unknown interface")
                 }
@@ -273,9 +277,11 @@ class CpclDriver(
             Interface.BLUETOOTH -> {
                 app.cpclBluetoothSockets.remove(settings.address)
             }
+
             Interface.TCP_IP -> {
                 app.cpclTcpSockets.remove(settings.name)
             }
+
             else -> {
                 throw Exception("Unknown interface")
             }
@@ -289,8 +295,14 @@ fun createDriver(
 ): PrinterDriver {
     val driverClass =
         when (printerSettings.driver) {
-            Driver.ESC_POS -> ::EscPosDriver
-            Driver.CPCL -> ::CpclDriver
+            Driver.ESC_POS -> {
+                ::EscPosDriver
+            }
+
+            Driver.CPCL -> {
+                ::CpclDriver
+            }
+
             else -> {
                 throw Exception("Unrecognized driver in settings")
             }

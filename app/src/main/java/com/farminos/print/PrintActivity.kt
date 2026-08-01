@@ -250,18 +250,21 @@ class PrintActivity : ComponentActivity() {
                     }
                 }
             }
+
             intent.action.equals(Intent.ACTION_SEND) && intent.type?.startsWith("image/") == true -> {
                 lifecycleScope.launch(Dispatchers.IO) {
                     handleSendImage(intent)
                     finish()
                 }
             }
+
             intent.action.equals(Intent.ACTION_SEND_MULTIPLE) && intent.type?.startsWith("image/") == true -> {
                 lifecycleScope.launch(Dispatchers.IO) {
                     handleSendMultipleImages(intent)
                     finish()
                 }
             }
+
             else -> {
                 setContent {
                     Box(Modifier.safeDrawingPadding()) {
