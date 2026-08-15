@@ -3,6 +3,8 @@ package com.farminos.print
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.graphics.Bitmap
+import android.hardware.usb.UsbDevice
+import android.hardware.usb.UsbManager
 import android.os.ParcelFileDescriptor
 import androidx.core.content.ContextCompat
 import com.citizen.jpos.command.CPCLConst
@@ -14,6 +16,7 @@ import com.citizen.request.android.RequestHandler
 import com.dantsu.escposprinter.EscPosPrinterCommands
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
 import com.dantsu.escposprinter.connection.tcp.TcpConnection
+import com.dantsu.escposprinter.connection.usb.UsbConnection
 
 // TODO: make PrinterDriver Closeable
 abstract class PrinterDriver(
@@ -54,6 +57,14 @@ abstract class PrinterDriver(
     }
 }
 
+private fun getFirstUsbDevice(
+    usbManager: UsbManager,
+    id: String,
+): UsbDevice =
+    usbManager.deviceList?.values?.first {
+        id == "%04x:%04x".format(it.vendorId, it.productId)
+    } ?: error("Usb device $id not found")
+
 class EscPosDriver(
     private var context: Context,
     settings: PrinterSettings,
@@ -71,11 +82,26 @@ class EscPosDriver(
                 ContextCompat.getSystemService(
                     context,
                     BluetoothManager::class.java,
-                )!!
+                ) ?: error("Can't get BluetoothManager")
             val bluetoothAdapter = bluetoothManager.adapter
             val device = bluetoothAdapter.getRemoteDevice(settings.address)
             socket = BluetoothConnection(device)
             app.escPosBluetoothSockets[settings.address] = socket
+        }
+        return socket
+    }
+
+    private fun getUsbSocket(settings: PrinterSettings): UsbConnection {
+        val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
+        var socket: UsbConnection? = null
+        if (settings.keepAlive) {
+            socket = app.escPosUsbSockets[settings.address]
+        }
+        if (socket == null) {
+            val usbManager = ContextCompat.getSystemService(context, UsbManager::class.java) ?: error("Can't get UsbManager")
+            val usbDevice = getFirstUsbDevice(usbManager, settings.address)
+            socket = UsbConnection(usbManager, usbDevice)
+            app.escPosUsbSockets[settings.address] = socket
         }
         return socket
     }
@@ -99,6 +125,10 @@ class EscPosDriver(
             when (settings.`interface`) {
                 Interface.BLUETOOTH -> {
                     getBluetoothSocket(settings)
+                }
+
+                Interface.USB -> {
+                    getUsbSocket(settings)
                 }
 
                 Interface.TCP_IP -> {
@@ -155,6 +185,10 @@ class EscPosDriver(
             when (settings.`interface`) {
                 Interface.BLUETOOTH -> {
                     app.escPosBluetoothSockets.remove(settings.address)
+                }
+
+                Interface.USB -> {
+                    app.escPosUsbSockets.remove(settings.address)
                 }
 
                 Interface.TCP_IP -> {
@@ -229,7 +263,7 @@ class CpclDriver(
                 }
 
                 else -> {
-                    throw Exception("Unknown interface")
+                    throw Exception("Unsupported interface")
                 }
             }
         while (!socket.isConnected) {
@@ -283,7 +317,7 @@ class CpclDriver(
             }
 
             else -> {
-                throw Exception("Unknown interface")
+                throw Exception("Unsupported interface")
             }
         }
     }

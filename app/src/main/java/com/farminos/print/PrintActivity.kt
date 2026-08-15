@@ -10,6 +10,8 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.hardware.usb.UsbConstants
+import android.hardware.usb.UsbManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -149,6 +151,21 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
+    private fun iterateUsbPrinters() =
+        sequence {
+            val usbManager = ContextCompat.getSystemService(this@PrintActivity, UsbManager::class.java)
+            val usbDevices = usbManager?.getDeviceList()
+            usbDevices?.values?.forEach {
+                for (i in 0 until it.interfaceCount) {
+                    val usbDeviceInterface = it.getInterface(i)
+                    if (usbDeviceInterface.interfaceClass == UsbConstants.USB_CLASS_PRINTER) {
+                        yield(it)
+                        continue
+                    }
+                }
+            }
+        }
+
     private fun updatePrintersList() {
         val allowed =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -171,12 +188,12 @@ class PrintActivity : ComponentActivity() {
             bluetoothAdapter.isEnabled
         }
         lifecycleScope.launch {
-            bluetoothAdapter.bondedDevices
-                .filter { it.bluetoothClass.deviceClass == 1664 } // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
-                .forEach {
-                    this@PrintActivity.settingsDataStore.updateData { currentSettings ->
-                        val builder = currentSettings.toBuilder()
-                        if (!currentSettings.printersMap.contains(it.address)) {
+            this@PrintActivity.settingsDataStore.updateData { currentSettings ->
+                val builder = currentSettings.toBuilder()
+                bluetoothAdapter.bondedDevices
+                    .filter { it.bluetoothClass.deviceClass == 1664 } // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
+                    .forEach {
+                        if (!builder.printersMap.contains(it.address)) {
                             val newPrinter =
                                 DEFAULT_PRINTER_SETTINGS
                                     .toBuilder()
@@ -188,9 +205,23 @@ class PrintActivity : ComponentActivity() {
                                     .build()
                             builder.putPrinters(it.address, newPrinter)
                         }
-                        return@updateData builder.build()
+                    }
+                iterateUsbPrinters().forEach {
+                    val usbId = "%04x:%04x".format(it.vendorId, it.productId)
+                    if (!builder.printersMap.contains(usbId)) {
+                        val newPrinter =
+                            DEFAULT_PRINTER_SETTINGS
+                                .toBuilder()
+                                .setInterface(Interface.USB)
+                                .setAddress(usbId)
+                                .setName("%s %s".format(it.manufacturerName, it.productName))
+                                .setDriver(Driver.ESC_POS)
+                                .build()
+                        builder.putPrinters(usbId, newPrinter)
                     }
                 }
+                return@updateData builder.build()
+            }
         }
     }
 

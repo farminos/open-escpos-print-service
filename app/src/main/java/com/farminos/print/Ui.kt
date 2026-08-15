@@ -511,7 +511,7 @@ fun SettingsScreen(context: PrintActivity) {
                     ) {
                         Text(text = "Enable bluetooth")
                     }
-                } else if (settings.printersMap.isEmpty()) {
+                } else if (settings.printersMap.values.none { it.`interface` == Interface.BLUETOOTH }) {
                     Text(
                         "There are no paired Bluetooth printers, you need to pair a printer in the Bluetooth settings first.",
                         style = MaterialTheme.typography.bodyMedium,
@@ -536,6 +536,35 @@ fun SettingsScreen(context: PrintActivity) {
                             PrinterCard(
                                 context = context,
                                 uuid = uuid,
+                                settings = printerSettings,
+                                defaultPrinterAddress = settings.defaultPrinter,
+                            )
+                        }
+                }
+                Text(
+                    "USB printers",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
+                )
+                if (settings.printersMap.values.none { it.`interface` == Interface.USB }) {
+                    Text(
+                        "There are no connected USB printers",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                    )
+                } else {
+                    settings.printersMap
+                        .filter { it.value.`interface` == Interface.USB }
+                        .forEach { (id, printerSettings) ->
+                            PrinterCard(
+                                context = context,
+                                uuid = id,
                                 settings = printerSettings,
                                 defaultPrinterAddress = settings.defaultPrinter,
                             )

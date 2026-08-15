@@ -11,6 +11,7 @@ enum Driver {
 enum Interface {
   BLUETOOTH = 0;
   TCP_IP = 1;
+  USB = 2;
 }
 
 message PrinterSettings {
@@ -35,6 +36,8 @@ message PrinterSettings {
 
 message Settings {
   string default_printer = 1;
-  // bluetooth printers: mac address -> settings; ip printers: uuid -> settings
+  // bluetooth printers: mac address -> settings
+  // ip printers: uuid -> settings
+  // usb printers: vendorId:productId -> settings
   map<string, PrinterSettings> printers = 2;
 }
