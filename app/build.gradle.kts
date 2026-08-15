@@ -35,8 +35,8 @@ android {
         applicationId = "com.farminos.print"
         minSdk = 23
         targetSdk = 37
-        versionCode = 26
-        versionName = "1.2.4"
+        versionCode = 27
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
