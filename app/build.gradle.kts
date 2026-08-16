@@ -58,7 +58,6 @@ android {
 }
 
 dependencies {
-    implementation(files("libs/Citizen_Android_1093.jar"))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.animation.android)
     implementation(libs.androidx.appcompat)
