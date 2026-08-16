@@ -1,5 +1,6 @@
 package com.farminos.print
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -7,7 +8,10 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.pdf.PdfRenderer
+import android.hardware.usb.UsbConstants
+import android.hardware.usb.UsbManager
 import android.os.ParcelFileDescriptor
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
@@ -307,3 +311,18 @@ fun rotateBitmap(
         canvas.drawBitmap(bitmap, 0f, 0f, null)
     }
 }
+
+fun iterateUsbPrinters(context: Context) =
+    sequence {
+        val usbManager = ContextCompat.getSystemService(context, UsbManager::class.java)
+        val usbDevices = usbManager?.getDeviceList()
+        usbDevices?.values?.forEach {
+            for (i in 0 until it.interfaceCount) {
+                val usbDeviceInterface = it.getInterface(i)
+                if (usbDeviceInterface.interfaceClass == UsbConstants.USB_CLASS_PRINTER) {
+                    yield(it)
+                    continue
+                }
+            }
+        }
+    }

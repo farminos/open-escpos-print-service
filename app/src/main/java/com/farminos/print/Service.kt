@@ -88,8 +88,27 @@ class FarminOSPrinterDiscoverySession(
                         info = buildPrinterInfo(id, name, printerSettings),
                         isDefault = uuid == settings.defaultPrinter,
                     )
-                }.sortedBy { if (it.isDefault) 0 else 1 }
+                }
         return printers
+    }
+
+    private fun listUsbPrinters(settings: Settings): List<PrinterWithSettingsAndInfo> {
+        return iterateUsbPrinters(context)
+            .mapNotNull {
+                val usbId = "%04x:%04x".format(it.vendorId, it.productId)
+                val printerSettings = settings.printersMap.get(usbId) ?: return@mapNotNull null
+                if (printerSettings.`interface` != Interface.USB) {
+                    return@mapNotNull null
+                }
+                val name = printerSettings.name
+                val id = context.generatePrinterId(usbId)
+                return@mapNotNull PrinterWithSettingsAndInfo(
+                    printer = Printer(address = usbId, name = name),
+                    settings = printerSettings,
+                    info = buildPrinterInfo(id, name, printerSettings),
+                    isDefault = usbId == settings.defaultPrinter,
+                )
+            }.toList()
     }
 
     private fun listNetworkPrinters(settings: Settings): List<PrinterWithSettingsAndInfo> {
@@ -111,7 +130,7 @@ class FarminOSPrinterDiscoverySession(
     }
 
     private fun listPrinters(settings: Settings): List<PrinterWithSettingsAndInfo> =
-        (this.listBluetoothPrinters(settings) + this.listNetworkPrinters(settings)).sortedBy {
+        (this.listBluetoothPrinters(settings) + this.listUsbPrinters(settings) + this.listNetworkPrinters(settings)).sortedBy {
             if (it.isDefault) 0 else 1
         }
 

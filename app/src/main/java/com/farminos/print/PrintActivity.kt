@@ -10,8 +10,6 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.hardware.usb.UsbConstants
-import android.hardware.usb.UsbManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -151,21 +149,6 @@ class PrintActivity : ComponentActivity() {
         }
     }
 
-    private fun iterateUsbPrinters() =
-        sequence {
-            val usbManager = ContextCompat.getSystemService(this@PrintActivity, UsbManager::class.java)
-            val usbDevices = usbManager?.getDeviceList()
-            usbDevices?.values?.forEach {
-                for (i in 0 until it.interfaceCount) {
-                    val usbDeviceInterface = it.getInterface(i)
-                    if (usbDeviceInterface.interfaceClass == UsbConstants.USB_CLASS_PRINTER) {
-                        yield(it)
-                        continue
-                    }
-                }
-            }
-        }
-
     private fun updatePrintersList() {
         val allowed =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -206,7 +189,7 @@ class PrintActivity : ComponentActivity() {
                             builder.putPrinters(it.address, newPrinter)
                         }
                     }
-                iterateUsbPrinters().forEach {
+                iterateUsbPrinters(this@PrintActivity).forEach {
                     val usbId = "%04x:%04x".format(it.vendorId, it.productId)
                     if (!builder.printersMap.contains(usbId)) {
                         val newPrinter =
