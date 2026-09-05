@@ -1,0 +1,4 @@
+# Prevent optimization from minimizing settings field names
+-keep class * extends com.google.protobuf.GeneratedMessageLite {
+    *;
+}
