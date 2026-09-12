@@ -153,7 +153,7 @@ class EscPosDriver(
         val heightPx = 128
         bitmapSlices(bitmap, heightPx).forEach {
             disconnectOnError {
-                commands.printImage(EscPosPrinterCommands.bitmapToBytes(it, true))
+                commands.printImage(EscPosPrinterCommands.bitmapToBytes(it, settings.dithering == Dithering.GRADIENT))
             }
             delayForLength(pixelsToCm(heightPx, settings.dpi))
         }
