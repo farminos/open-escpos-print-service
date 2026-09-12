@@ -72,7 +72,6 @@ dependencies {
     implementation(libs.escpos.thermalprinter.android)
     implementation(libs.html2bitmap)
     implementation(libs.material)
-    implementation(libs.protobuf.gradle.plugin)
     implementation(libs.protobuf.kotlin.lite)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
