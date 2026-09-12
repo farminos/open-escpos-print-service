@@ -22,7 +22,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,7 +43,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.farminos.print.ui.theme.OpenESCPOSPrintServiceTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpandableCard(
     header: @Composable () -> Unit,
@@ -106,9 +104,9 @@ data class Option(
     val label: String,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MenuSelect(
+    label: String,
     options: Array<Option>,
     selectedValue: Int,
     onSelect: (value: Int) -> Unit,
@@ -121,7 +119,7 @@ fun MenuSelect(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = "Driver")
+        Text(text = label)
         Box {
             TextField(
                 value = selectedOption?.label ?: "",
@@ -189,7 +187,6 @@ fun LabelledSwitch(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T> LabelledTextField(
     label: String,
@@ -314,6 +311,7 @@ fun PrinterCard(
                     Text(text = "Delete this printer")
                 }
                 MenuSelect(
+                    label = "Driver",
                     options =
                         arrayOf(
                             Option(value = Driver.ESC_POS_VALUE, label = "ESC / POS"),
@@ -323,6 +321,20 @@ fun PrinterCard(
                     onSelect = { value ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setDriverValue(value)
+                        }
+                    },
+                )
+                MenuSelect(
+                    label = "Dithering",
+                    options =
+                        arrayOf(
+                            Option(value = Dithering.NONE_VALUE, label = "None"),
+                            Option(value = Dithering.GRADIENT_VALUE, label = "Gradient"),
+                        ),
+                    selectedValue = settings.ditheringValue,
+                    onSelect = { value ->
+                        context.updatePrinterSetting(uuid = uuid) {
+                            it.setDitheringValue(value)
                         }
                     },
                 )
@@ -606,6 +618,7 @@ val DEFAULT_PRINTER_SETTINGS: PrinterSettings =
         .newBuilder()
         .setEnabled(false)
         .setDriver(Driver.ESC_POS)
+        .setDithering(Dithering.GRADIENT)
         .setDpi(203)
         .setWidth(5.0F)
         .setHeight(8.0F)

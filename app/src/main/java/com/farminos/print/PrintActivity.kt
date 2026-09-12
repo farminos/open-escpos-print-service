@@ -184,6 +184,7 @@ class PrintActivity : ComponentActivity() {
                                     .setAddress(it.address)
                                     .setName(it.name)
                                     .setDriver(if (it.name.startsWith("CMP_")) Driver.CPCL else Driver.ESC_POS)
+                                    .setDithering(if (it.name.startsWith("CMP_")) Dithering.NONE else Dithering.GRADIENT)
                                     .setKeepAlive(it.name.startsWith("CMP_")) // Keep connections alive by default for Citizen printers
                                     .build()
                             builder.putPrinters(it.address, newPrinter)
@@ -199,6 +200,7 @@ class PrintActivity : ComponentActivity() {
                                 .setAddress(usbId)
                                 .setName("%s %s".format(it.manufacturerName, it.productName))
                                 .setDriver(Driver.ESC_POS)
+                                .setDithering(Dithering.GRADIENT)
                                 .build()
                         builder.putPrinters(usbId, newPrinter)
                     }
