@@ -13,6 +13,7 @@ import com.dantsu.escposprinter.connection.DeviceConnection
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
 import com.dantsu.escposprinter.connection.tcp.TcpConnection
 import com.dantsu.escposprinter.connection.usb.UsbConnection
+import java.io.ByteArrayOutputStream
 import kotlin.math.ceil
 
 class CPCLPrinterCommands(
@@ -34,6 +35,7 @@ fun cpclBitmapToBytes(
     bitmap: Bitmap,
     settings: PrinterSettings,
 ): ByteArray {
+    val output = ByteArrayOutputStream()
     // The dithering is from com.dantsu.escposprinter.EscPosPrinterCommands, only the header changes
     val bitmapWidth = bitmap.width
     val bitmapHeight = bitmap.height
@@ -45,6 +47,7 @@ fun cpclBitmapToBytes(
     val count = 1
     val bytesPerLine = ceil(bitmapWidth / 8f).toInt()
     val header = "! $horizontalOffset $dpi $dpi $labelHeightPx $count\r\nCG $bytesPerLine $bitmapHeight 0 0 ".toByteArray()
+    output.write(header)
     val imageBytes = ByteArray(bytesPerLine * bitmapHeight)
     var i = 0
     var greyscaleCoefficientInit = 0
@@ -80,8 +83,13 @@ fun cpclBitmapToBytes(
             greyscaleCoefficientInit = 0
         }
     }
-    val footer = "\r\nFORM\r\nPRINT\r\n".toByteArray()
-    return header + imageBytes + footer
+    output.write(imageBytes)
+    output.write("\r\n".toByteArray())
+    if (settings.cut) {
+        output.write("FORM\r\n".toByteArray())
+    }
+    output.write("PRINT\r\n".toByteArray())
+    return output.toByteArray()
 }
 
 // TODO: make PrinterDriver Closeable
