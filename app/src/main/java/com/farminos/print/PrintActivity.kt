@@ -174,7 +174,9 @@ class PrintActivity : ComponentActivity() {
             this@PrintActivity.settingsDataStore.updateData { currentSettings ->
                 val builder = currentSettings.toBuilder()
                 bluetoothAdapter.bondedDevices
-                    .filter { it.bluetoothClass.deviceClass == 1664 } // 1664 is major 0x600 (IMAGING) + minor 0x80 (PRINTER)
+                    // Most printers have deviceClass 0x680: major 0x600 (IMAGING) + minor 0x80 (PRINTER)
+                    // but some have 0x600 (IMAGING) only, like the Gertec G800
+                    .filter { it.bluetoothClass.deviceClass == 0x600 || it.bluetoothClass.deviceClass == 0x680 }
                     .forEach {
                         if (!builder.printersMap.contains(it.address)) {
                             val newPrinter =
