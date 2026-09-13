@@ -330,6 +330,8 @@ fun PrinterCard(
                         arrayOf(
                             Option(value = Dithering.NONE_VALUE, label = "None"),
                             Option(value = Dithering.GRADIENT_VALUE, label = "Gradient"),
+                            Option(value = Dithering.FLOYD_STEINBERG_VALUE, label = "Floyd-Steinberg"),
+                            Option(value = Dithering.ATKINSON_VALUE, label = "Atkinson"),
                         ),
                     selectedValue = settings.ditheringValue,
                     onSelect = { value ->

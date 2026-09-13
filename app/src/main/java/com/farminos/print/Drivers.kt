@@ -35,8 +35,6 @@ fun cpclBitmapToBytes(
     bitmap: Bitmap,
     settings: PrinterSettings,
 ): ByteArray {
-    val output = ByteArrayOutputStream()
-    // The dithering is from com.dantsu.escposprinter.EscPosPrinterCommands, only the header changes
     val bitmapWidth = bitmap.width
     val bitmapHeight = bitmap.height
     val dpi = settings.dpi
@@ -45,17 +43,13 @@ fun cpclBitmapToBytes(
     val labelHeightMarginCm = 0.15f
     val labelHeightPx = cmToPixels(labelHeightCm - labelHeightMarginCm, dpi)
     val count = 1
-    val bytesPerLine = ceil(bitmapWidth / 8f).toInt()
-    val header = "! $horizontalOffset $dpi $dpi $labelHeightPx $count\r\nCG $bytesPerLine $bitmapHeight 0 0 ".toByteArray()
-    output.write(header)
+    val bytesPerLine = ceil(((bitmapWidth.toFloat()) / 8f).toDouble()).toInt()
+    val header = "! $horizontalOffset $dpi $dpi $labelHeightPx $count\r\nCG $bytesPerLine $bitmapHeight 0 0 "
+    val output = ByteArrayOutputStream()
+    output.write(header.toByteArray())
     val imageBytes = ByteArray(bytesPerLine * bitmapHeight)
     var i = 0
-    var greyscaleCoefficientInit = 0
-    val gradientStep = 6
-    val colorLevelStep = 765.0 / (15 * gradientStep + gradientStep - 1)
     for (posY in 0..<bitmapHeight) {
-        var greyscaleCoefficient = greyscaleCoefficientInit
-        val greyscaleLine = posY % gradientStep
         var j = 0
         while (j < bitmapWidth) {
             var b = 0
@@ -66,21 +60,13 @@ fun cpclBitmapToBytes(
                     val red = (color shr 16) and 255
                     val green = (color shr 8) and 255
                     val blue = color and 255
-                    if ((red + green + blue) < ((greyscaleCoefficient * gradientStep + greyscaleLine) * colorLevelStep)) {
+                    if (red < 160 || green < 160 || blue < 160) {
                         b = b or (1 shl (7 - k))
-                    }
-                    greyscaleCoefficient += 5
-                    if (greyscaleCoefficient > 15) {
-                        greyscaleCoefficient -= 16
                     }
                 }
             }
             imageBytes[i++] = b.toByte()
             j += 8
-        }
-        greyscaleCoefficientInit += 2
-        if (greyscaleCoefficientInit > 15) {
-            greyscaleCoefficientInit = 0
         }
     }
     output.write(imageBytes)
@@ -146,6 +132,18 @@ open class EscPosDriver(
     protected val commands: EscPosPrinterCommands
 
     protected open fun createCommands(socket: DeviceConnection): EscPosPrinterCommands = EscPosPrinterCommands(socket)
+
+    protected fun getDitheredBitmap(bitmap: Bitmap): Bitmap {
+        return when (settings.dithering) {
+            Dithering.NONE -> bitmap
+            Dithering.GRADIENT -> ditherGradient(bitmap)
+            Dithering.FLOYD_STEINBERG -> ditherFloydSteinberg(bitmap)
+            Dithering.ATKINSON -> ditherAtkinson(bitmap)
+            else -> {
+                throw Exception("Unknown dithering algorithm")
+            }
+        }
+    }
 
     private fun getBluetoothSocket(settings: PrinterSettings): BluetoothConnection {
         val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
@@ -226,11 +224,12 @@ open class EscPosDriver(
     }
 
     override fun printBitmap(bitmap: Bitmap) {
+        val ditheredBitmap = getDitheredBitmap(bitmap)
         val heightPx = 128
         delayForLength(0f)
-        bitmapSlices(bitmap, heightPx).forEach {
+        bitmapSlices(ditheredBitmap, heightPx).forEach {
             disconnectOnError {
-                commands.printImage(EscPosPrinterCommands.bitmapToBytes(it, settings.dithering == Dithering.GRADIENT))
+                commands.printImage(EscPosPrinterCommands.bitmapToBytes(it, false))
             }
             delayForLength(pixelsToCm(heightPx, settings.dpi))
         }
@@ -287,9 +286,10 @@ class CpclDriver(
     override fun createCommands(socket: DeviceConnection): EscPosPrinterCommands = CPCLPrinterCommands(socket)
 
     override fun printBitmap(bitmap: Bitmap) {
+        val ditheredBitmap = getDitheredBitmap(bitmap)
         delayForLength(0f)
         disconnectOnError {
-            commands.printImage(cpclBitmapToBytes(bitmap, settings))
+            commands.printImage(cpclBitmapToBytes(ditheredBitmap, settings))
         }
         if (settings.cut) {
             disconnectOnError {
