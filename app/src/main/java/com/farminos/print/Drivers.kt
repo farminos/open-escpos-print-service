@@ -41,7 +41,7 @@ fun cpclBitmapToBytes(
     val horizontalOffset = 0
     val labelHeightCm = settings.height
     val labelHeightMarginCm = 0.15f
-    val labelHeightPx = cmToPixels(labelHeightCm - labelHeightMarginCm, dpi)
+    val labelHeightPx = if (settings.cut) cmToPixels(labelHeightCm - labelHeightMarginCm, dpi) else bitmapHeight
     val count = 1
     val bytesPerLine = ceil(((bitmapWidth.toFloat()) / 8f).toDouble()).toInt()
     val header = "! $horizontalOffset $dpi $dpi $labelHeightPx $count\r\nCG $bytesPerLine $bitmapHeight 0 0 "
