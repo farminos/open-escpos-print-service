@@ -72,10 +72,5 @@ You can share images to this app, they will be printed on the default printer.
 If you have an ESC/POS __label__ printer, enable the `Cut after each page` switch, this will make the printer go to the start of the next label (at least on the Netum ones).
 There are speed limits and delays that you can set in each printer settings; if your printer works well, leave these at 0.
 
-## TODO
-Some things are not implemented yet:
- * a document print queue;
- * discovery of network printers through mDNS.
-
 ## Linter
 Please lint with `./gradlew lintKotlin` and format code with `./gradlew formatKotlin` before commiting.
