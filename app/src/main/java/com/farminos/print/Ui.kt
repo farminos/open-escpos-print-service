@@ -315,7 +315,7 @@ fun PrinterCard(
                     options =
                         arrayOf(
                             Option(value = Driver.ESC_POS_VALUE, label = "ESC / POS"),
-                            Option(value = Driver.CPCL_VALUE, label = "Citizen CPCL"),
+                            Option(value = Driver.CPCL_VALUE, label = "CPCL"),
                         ),
                     selectedValue = settings.driverValue,
                     onSelect = { value ->
