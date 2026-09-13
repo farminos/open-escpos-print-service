@@ -443,7 +443,7 @@ private fun renderHtml(
         .setConfigurator(Configurator())
         .setBitmapWidth(widthPixels)
         .setContent(WebViewContent.html(content))
-        .setScreenshotDelay(0)
+        .setScreenshotDelay(10)
         .setMeasureDelay(0)
         .build()
         .bitmap
