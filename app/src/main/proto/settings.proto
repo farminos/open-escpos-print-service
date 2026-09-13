@@ -17,6 +17,8 @@ enum Interface {
 enum Dithering {
   GRADIENT = 0;
   NONE = 1;
+  FLOYD_STEINBERG = 2;
+  ATKINSON = 3;
 }
 
 message PrinterSettings {
