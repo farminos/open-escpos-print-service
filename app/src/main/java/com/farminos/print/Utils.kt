@@ -68,6 +68,14 @@ fun convertTransparentToWhite(bitmap: Bitmap) {
     )
 }
 
+fun argbToRgbOnWhite(bitmap: Bitmap): Bitmap {
+    val result = createBitmap(bitmap.width, bitmap.height)
+    val canvas = Canvas(result)
+    canvas.drawColor(Color.WHITE)
+    canvas.drawBitmap(bitmap, 0f, 0f, null)
+    return result
+}
+
 fun pdfToBitmaps(
     document: ParcelFileDescriptor,
     dpi: Int,

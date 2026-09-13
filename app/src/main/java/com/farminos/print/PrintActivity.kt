@@ -329,7 +329,8 @@ class PrintActivity : ComponentActivity() {
                 contentResolver.openInputStream(it)?.use { inputStream ->
                     val bitmap = BitmapFactory.decodeStream(inputStream)
                     val scaledBitmap = scaleBitmap(rotateBitmap(bitmap, orientation), printerSettings)
-                    instance.printBitmap(scaledBitmap)
+                    val rgbBitmap = argbToRgbOnWhite(scaledBitmap)
+                    instance.printBitmap(rgbBitmap)
                 }
             }
         } finally {
