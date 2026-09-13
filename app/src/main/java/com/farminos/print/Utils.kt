@@ -41,33 +41,6 @@ fun decompress(compressed: ByteArray?): String {
     return builder.toString()
 }
 
-fun convertTransparentToWhite(bitmap: Bitmap) {
-    val pixels = IntArray(bitmap.height * bitmap.width)
-    bitmap.getPixels(
-        pixels,
-        0,
-        bitmap.width,
-        0,
-        0,
-        bitmap.width,
-        bitmap.height,
-    )
-    for (j in pixels.indices) {
-        if (pixels[j] == Color.TRANSPARENT) {
-            pixels[j] = Color.WHITE
-        }
-    }
-    bitmap.setPixels(
-        pixels,
-        0,
-        bitmap.width,
-        0,
-        0,
-        bitmap.width,
-        bitmap.height,
-    )
-}
-
 fun argbToRgbOnWhite(bitmap: Bitmap): Bitmap {
     val result = createBitmap(bitmap.width, bitmap.height)
     val canvas = Canvas(result)
@@ -92,7 +65,7 @@ fun pdfToBitmaps(
         val ratio = width.toFloat() / page.width
         transform.postScale(ratio, ratio)
         val bitmap = createBitmap(width, height)
-        convertTransparentToWhite(bitmap)
+        bitmap.eraseColor(Color.WHITE)
         page.render(bitmap, null, transform, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
         yield(bitmap)
         page.close()
