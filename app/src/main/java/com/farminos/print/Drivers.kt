@@ -19,14 +19,7 @@ import kotlin.math.ceil
 class CPCLPrinterCommands(
     private val printerConnection: DeviceConnection,
 ) : EscPosPrinterCommands(printerConnection) {
-    override fun cutPaper(): CPCLPrinterCommands {
-        if (!this.printerConnection.isConnected) {
-            return this
-        }
-        this.printerConnection.write("CUT\r\n".toByteArray())
-        this.printerConnection.send(100)
-        return this
-    }
+    override fun cutPaper(): CPCLPrinterCommands = this
 
     override fun reset(): CPCLPrinterCommands = this
 }
@@ -44,9 +37,12 @@ fun cpclBitmapToBytes(
     val labelHeightPx = if (settings.cut) cmToPixels(labelHeightCm - labelHeightMarginCm, dpi) else bitmapHeight
     val count = 1
     val bytesPerLine = ceil(((bitmapWidth.toFloat()) / 8f).toDouble()).toInt()
-    val header = "! $horizontalOffset $dpi $dpi $labelHeightPx $count\r\nCG $bytesPerLine $bitmapHeight 0 0 "
     val output = ByteArrayOutputStream()
-    output.write(header.toByteArray())
+    output.write("! $horizontalOffset $dpi $dpi $labelHeightPx $count\r\n".toByteArray())
+    if (!settings.cut) {
+        output.write("JOURNAL\r\n".toByteArray())
+    }
+    output.write("CG $bytesPerLine $bitmapHeight 0 0 ".toByteArray())
     val imageBytes = ByteArray(bytesPerLine * bitmapHeight)
     var i = 0
     for (posY in 0..<bitmapHeight) {
@@ -302,15 +298,11 @@ class CpclDriver(
         disconnectOnError {
             commands.printImage(cpclBitmapToBytes(ditheredBitmap, settings))
         }
-        if (settings.cut) {
-            disconnectOnError {
-                commands.cutPaper()
-            }
-            if (settings.cutDelay > 0) {
-                Thread.sleep((settings.cutDelay * 1000).toLong())
-                // Reset speed limit timer
-                lastTime = System.currentTimeMillis()
-            }
+        delayForLength(pixelsToCm(ditheredBitmap.height, settings.dpi))
+        if (settings.cut && settings.cutDelay > 0) {
+            Thread.sleep((settings.cutDelay * 1000).toLong())
+            // Reset speed limit timer
+            lastTime = System.currentTimeMillis()
         }
         disconnectOnError {
             commands.reset()
