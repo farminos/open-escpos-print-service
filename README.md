@@ -69,7 +69,6 @@ You might want to add some inline css in your html to reset the margins:
 You can share images to this app, they will be printed on the default printer.
 
 ## Details
-If you have an ESC/POS __label__ printer, enable the `Cut after each page` switch, this will make the printer go to the start of the next label (at least on the Netum ones).
 There are speed limits and delays that you can set in each printer settings; if your printer works well, leave these at 0.
 
 ## Linter

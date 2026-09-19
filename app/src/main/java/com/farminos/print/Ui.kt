@@ -325,6 +325,20 @@ fun PrinterCard(
                     },
                 )
                 MenuSelect(
+                    label = "Media type",
+                    options =
+                        arrayOf(
+                            Option(value = 0, label = "Receipt"),
+                            Option(value = 1, label = "Label"),
+                        ),
+                    selectedValue = if (settings.cut) 1 else 0,
+                    onSelect = { value ->
+                        context.updatePrinterSetting(uuid = uuid) {
+                            it.setCut(value == 1)
+                        }
+                    },
+                )
+                MenuSelect(
                     label = "Dithering",
                     options =
                         arrayOf(
@@ -437,7 +451,7 @@ fun PrinterCard(
                     },
                 )
                 LabelledTextField(
-                    label = "Cut delay (s)",
+                    label = "Delay per label (s)",
                     value = settings.cutDelay.toString(),
                     transform = { cutDelay ->
                         cutDelay.toFloatOrNull()
@@ -445,15 +459,6 @@ fun PrinterCard(
                     onValueChange = { cutDelay ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setCutDelay(cutDelay)
-                        }
-                    },
-                )
-                LabelledSwitch(
-                    label = "Cut after each page",
-                    checked = settings.cut,
-                    onCheckedChange = { cut ->
-                        context.updatePrinterSetting(uuid = uuid) {
-                            it.setCut(cut)
                         }
                     },
                 )
