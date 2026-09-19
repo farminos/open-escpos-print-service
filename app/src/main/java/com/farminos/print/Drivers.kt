@@ -81,6 +81,29 @@ abstract class PrinterDriver(
 ) {
     protected var lastTime: Long? = null
 
+    protected fun getDitheredBitmap(bitmap: Bitmap): Bitmap =
+        when (settings.dithering) {
+            Dithering.NONE -> {
+                bitmap
+            }
+
+            Dithering.GRADIENT -> {
+                ditherGradient(bitmap)
+            }
+
+            Dithering.FLOYD_STEINBERG -> {
+                ditherFloydSteinberg(bitmap)
+            }
+
+            Dithering.ATKINSON -> {
+                ditherAtkinson(bitmap)
+            }
+
+            else -> {
+                throw Exception("Unknown dithering algorithm")
+            }
+        }
+
     protected fun disconnectOnError(block: () -> Unit) {
         try {
             block()
@@ -128,29 +151,6 @@ open class EscPosDriver(
     protected val commands: EscPosPrinterCommands
 
     protected open fun createCommands(socket: DeviceConnection): EscPosPrinterCommands = EscPosPrinterCommands(socket)
-
-    protected fun getDitheredBitmap(bitmap: Bitmap): Bitmap =
-        when (settings.dithering) {
-            Dithering.NONE -> {
-                bitmap
-            }
-
-            Dithering.GRADIENT -> {
-                ditherGradient(bitmap)
-            }
-
-            Dithering.FLOYD_STEINBERG -> {
-                ditherFloydSteinberg(bitmap)
-            }
-
-            Dithering.ATKINSON -> {
-                ditherAtkinson(bitmap)
-            }
-
-            else -> {
-                throw Exception("Unknown dithering algorithm")
-            }
-        }
 
     private fun getBluetoothSocket(settings: PrinterSettings): BluetoothConnection {
         val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
