@@ -4,6 +4,10 @@ This is an Android app that provides a [PrintService](https://developer.android.
 
 It supports ESC/POS printers like the Netum G5 or MTP-II.
 It also supports Citizen printers using the CPCL protocol.
+It supports TSPL label printers, such as the 4x6 shipping label printers
+sold as Jadens, MUNBYN, Rollo and similar. TSPL printers need their media
+type set to gap, black mark or continuous, and the gap or mark height in
+centimetres.
 
 You can connect printers through Bluetooth, USB or a TCP socket.
 

@@ -6,12 +6,20 @@ option java_multiple_files = true;
 enum Driver {
   ESC_POS = 0;
   CPCL = 1;
+  TSPL = 2;
 }
 
 enum Interface {
   BLUETOOTH = 0;
   TCP_IP = 1;
   USB = 2;
+}
+
+// TSPL only: how the printer finds the start of the next label.
+enum MediaType {
+  GAP = 0;
+  BLACK_MARK = 1;
+  CONTINUOUS = 2;
 }
 
 enum Dithering {
@@ -38,6 +46,9 @@ message PrinterSettings {
   bool keep_alive = 16;
   bool skip_white_lines_at_page_end = 17;
   Dithering dithering = 18;
+  MediaType media_type = 19; // tspl only
+  float gap = 20;            // tspl only, cm between labels or black mark height
+  int32 density = 21;        // tspl only, 1-15; 0 leaves the printer default
 }
 
 message Settings {

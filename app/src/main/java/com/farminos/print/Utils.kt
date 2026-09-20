@@ -307,3 +307,82 @@ fun iterateUsbPrinters(context: Context) =
             }
         }
     }
+
+fun cmToInches(cm: Float): Float = cm / INCH
+
+data class TsplRaster(
+    val bytes: ByteArray,
+    val widthBytes: Int,
+    val height: Int,
+)
+
+/**
+ * Packs a bitmap for a TSPL BITMAP command.
+ *
+ * TSPL is inverted relative to ESC/POS: a 0 bit burns and a 1 bit leaves the
+ * label blank. Widths are whole bytes, so rows are padded blank rather than
+ * clipped, which keeps the last few dots of an odd width.
+ */
+fun bitmapToTsplRaster(
+    bitmap: Bitmap,
+    dither: Boolean,
+): TsplRaster {
+    val pixels = IntArray(bitmap.width * bitmap.height)
+    bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+    return packTsplRaster(pixels, bitmap.width, bitmap.height, dither)
+}
+
+/** Split out from [bitmapToTsplRaster] so the packing can be tested off-device. */
+fun packTsplRaster(
+    pixels: IntArray,
+    width: Int,
+    height: Int,
+    dither: Boolean,
+): TsplRaster {
+    val luma = IntArray(width * height)
+    for (i in pixels.indices) {
+        val p = pixels[i]
+        luma[i] = (
+            (p ushr 16 and 0xFF) * 299 +
+                (p ushr 8 and 0xFF) * 587 +
+                (p and 0xFF) * 114
+        ) / 1000
+    }
+
+    val widthBytes = (width + 7) / 8
+    val out = ByteArray(widthBytes * height) { -1 } // 0xFF, so padding stays blank
+
+    for (y in 0 until height) {
+        for (x in 0 until width) {
+            val i = y * width + x
+            val value = luma[i]
+            if (value < 128) {
+                val j = y * widthBytes + (x shr 3)
+                out[j] = (out[j].toInt() and (0x80 shr (x and 7)).inv()).toByte()
+            }
+            if (dither) {
+                val error = value - if (value < 128) 0 else 255
+                diffuse(luma, width, height, x + 1, y, error * 7 / 16)
+                diffuse(luma, width, height, x - 1, y + 1, error * 3 / 16)
+                diffuse(luma, width, height, x, y + 1, error * 5 / 16)
+                diffuse(luma, width, height, x + 1, y + 1, error / 16)
+            }
+        }
+    }
+    return TsplRaster(out, widthBytes, height)
+}
+
+private fun diffuse(
+    luma: IntArray,
+    width: Int,
+    height: Int,
+    x: Int,
+    y: Int,
+    error: Int,
+) {
+    if (x < 0 || x >= width || y >= height) {
+        return
+    }
+    val i = y * width + x
+    luma[i] = (luma[i] + error).coerceIn(0, 255)
+}

@@ -316,6 +316,7 @@ fun PrinterCard(
                         arrayOf(
                             Option(value = Driver.ESC_POS_VALUE, label = "ESC / POS"),
                             Option(value = Driver.CPCL_VALUE, label = "Citizen CPCL"),
+                            Option(value = Driver.TSPL_VALUE, label = "TSPL"),
                         ),
                     selectedValue = settings.driverValue,
                     onSelect = { value ->
@@ -335,6 +336,45 @@ fun PrinterCard(
                     onSelect = { value ->
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setDitheringValue(value)
+                        }
+                    },
+                )
+                MenuSelect(
+                    label = "Media type (TSPL)",
+                    options =
+                        arrayOf(
+                            Option(value = MediaType.GAP_VALUE, label = "Gap"),
+                            Option(value = MediaType.BLACK_MARK_VALUE, label = "Black mark"),
+                            Option(value = MediaType.CONTINUOUS_VALUE, label = "Continuous"),
+                        ),
+                    selectedValue = settings.mediaTypeValue,
+                    onSelect = { value ->
+                        context.updatePrinterSetting(uuid = uuid) {
+                            it.setMediaTypeValue(value)
+                        }
+                    },
+                )
+                LabelledTextField(
+                    label = "Gap / mark (cm, TSPL)",
+                    value = settings.gap.toString(),
+                    transform = { value ->
+                        value.toFloatOrNull()
+                    },
+                    onValueChange = { gap ->
+                        context.updatePrinterSetting(uuid = uuid) {
+                            it.setGap(gap)
+                        }
+                    },
+                )
+                LabelledTextField(
+                    label = "Density (TSPL)",
+                    value = settings.density.toString(),
+                    transform = { value ->
+                        value.toIntOrNull()
+                    },
+                    onValueChange = { density ->
+                        context.updatePrinterSetting(uuid = uuid) {
+                            it.setDensity(density)
                         }
                     },
                 )
