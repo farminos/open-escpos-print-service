@@ -8,10 +8,10 @@ import android.hardware.usb.UsbManager
 import android.os.ParcelFileDescriptor
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.get
-import com.dantsu.escposprinter.connection.DeviceConnection
-import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
-import com.dantsu.escposprinter.connection.tcp.TcpConnection
-import com.dantsu.escposprinter.connection.usb.UsbConnection
+import com.farminos.print.connection.BluetoothConnection
+import com.farminos.print.connection.DeviceConnection
+import com.farminos.print.connection.TcpConnection
+import com.farminos.print.connection.UsbConnection
 import java.io.ByteArrayOutputStream
 import kotlin.math.ceil
 
@@ -208,7 +208,7 @@ open class EscPosDriver(
                 ) ?: error("Can't get BluetoothManager")
             val bluetoothAdapter = bluetoothManager.adapter
             val device = bluetoothAdapter.getRemoteDevice(settings.address)
-            socket = BluetoothConnection(device)
+            socket = BluetoothConnection(context, device)
             app.escPosBluetoothSockets[settings.address] = socket
         }
         return socket
