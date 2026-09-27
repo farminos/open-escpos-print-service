@@ -8,13 +8,61 @@ import android.hardware.usb.UsbManager
 import android.os.ParcelFileDescriptor
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.get
-import com.dantsu.escposprinter.EscPosPrinterCommands
 import com.dantsu.escposprinter.connection.DeviceConnection
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection
 import com.dantsu.escposprinter.connection.tcp.TcpConnection
 import com.dantsu.escposprinter.connection.usb.UsbConnection
 import java.io.ByteArrayOutputStream
 import kotlin.math.ceil
+
+fun initGSv0Command(
+    bytesByLine: Int,
+    bitmapHeight: Int,
+): ByteArray {
+    val xH = bytesByLine / 256
+    val xL = bytesByLine - (xH * 256)
+    val yH = bitmapHeight / 256
+    val yL = bitmapHeight - (yH * 256)
+    val imageBytes = ByteArray(8 + bytesByLine * bitmapHeight)
+    imageBytes[0] = 0x1d
+    imageBytes[1] = 0x76
+    imageBytes[2] = 0x30
+    imageBytes[3] = 0x00
+    imageBytes[4] = xL.toByte()
+    imageBytes[5] = xH.toByte()
+    imageBytes[6] = yL.toByte()
+    imageBytes[7] = yH.toByte()
+    return imageBytes
+}
+
+fun escPosBitmapToBytes(bitmap: Bitmap): ByteArray {
+    val bitmapWidth = bitmap.getWidth()
+    val bitmapHeight = bitmap.getHeight()
+    val bytesByLine = ceil(((bitmapWidth.toFloat()) / 8f).toDouble()).toInt()
+    val imageBytes = initGSv0Command(bytesByLine, bitmapHeight)
+    var i = 8
+    for (posY in 0..<bitmapHeight) {
+        var j = 0
+        while (j < bitmapWidth) {
+            var b = 0
+            for (k in 0..7) {
+                val posX = j + k
+                if (posX < bitmapWidth) {
+                    val color = bitmap[posX, posY]
+                    val red = (color shr 16) and 255
+                    val green = (color shr 8) and 255
+                    val blue = color and 255
+                    if (red < 160 || green < 160 || blue < 160) {
+                        b = b or (1 shl (7 - k))
+                    }
+                }
+            }
+            imageBytes[i++] = b.toByte()
+            j += 8
+        }
+    }
+    return imageBytes
+}
 
 fun cpclBitmapToBytes(
     bitmap: Bitmap,
@@ -239,7 +287,7 @@ open class EscPosDriver(
         delayForLength(0f)
         bitmapSlices(ditheredBitmap, heightPx).forEach {
             disconnectOnError {
-                socket.write(EscPosPrinterCommands.bitmapToBytes(it, false))
+                socket.write(escPosBitmapToBytes(it))
                 socket.send()
             }
             delayForLength(pixelsToCm(heightPx, settings.dpi))
