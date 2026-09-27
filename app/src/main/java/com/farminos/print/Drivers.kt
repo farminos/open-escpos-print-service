@@ -273,12 +273,10 @@ open class EscPosDriver(
 
     override fun reset() {
         this.socket.write(byteArrayOf(0x1b, 0x40))
-        this.socket.send()
     }
 
     override fun cutPaper() {
         this.socket.write(byteArrayOf(0x1d, 0x56, 0x01))
-        this.socket.send()
     }
 
     override fun printBitmap(bitmap: Bitmap) {
@@ -288,7 +286,6 @@ open class EscPosDriver(
         bitmapSlices(ditheredBitmap, heightPx).forEach {
             disconnectOnError {
                 socket.write(escPosBitmapToBytes(it))
-                socket.send()
             }
             delayForLength(pixelsToCm(heightPx, settings.dpi))
         }
@@ -355,7 +352,6 @@ class CpclDriver(
         delayForLength(0f)
         disconnectOnError {
             socket.write(cpclBitmapToBytes(ditheredBitmap, settings))
-            socket.send()
         }
         delayForLength(pixelsToCm(ditheredBitmap.height, settings.dpi))
         if (settings.cut && settings.cutDelay > 0) {

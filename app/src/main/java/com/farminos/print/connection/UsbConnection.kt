@@ -23,7 +23,6 @@ class UsbConnection(
         }
         try {
             this.outputStream = UsbOutputStream(this.usbManager, this.device)
-            this.data = ByteArray(0)
         } catch (e: IOException) {
             e.printStackTrace()
             this.outputStream = null
@@ -32,7 +31,6 @@ class UsbConnection(
     }
 
     override fun disconnect() {
-        this.data = ByteArray(0)
         if (this.isConnected) {
             return
         }

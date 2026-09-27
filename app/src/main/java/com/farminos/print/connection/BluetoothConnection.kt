@@ -32,7 +32,6 @@ class BluetoothConnection(
             bluetoothAdapter.cancelDiscovery()
             this.socket!!.connect()
             this.outputStream = this.socket!!.outputStream
-            this.data = ByteArray(0)
         } catch (e: IOException) {
             e.printStackTrace()
             this.disconnect()
@@ -55,7 +54,6 @@ class BluetoothConnection(
         }
 
     override fun disconnect() {
-        this.data = ByteArray(0)
         if (this.outputStream != null) {
             try {
                 this.outputStream!!.close()

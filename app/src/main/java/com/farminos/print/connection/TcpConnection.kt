@@ -26,7 +26,6 @@ class TcpConnection(
                 this.timeout,
             )
             this.outputStream = this.socket!!.getOutputStream()
-            this.data = ByteArray(0)
         } catch (e: IOException) {
             e.printStackTrace()
             this.disconnect()
@@ -35,7 +34,6 @@ class TcpConnection(
     }
 
     override fun disconnect() {
-        this.data = ByteArray(0)
         if (this.outputStream != null) {
             try {
                 this.outputStream!!.close()
