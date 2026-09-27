@@ -16,14 +16,6 @@ import com.dantsu.escposprinter.connection.usb.UsbConnection
 import java.io.ByteArrayOutputStream
 import kotlin.math.ceil
 
-class CPCLPrinterCommands(
-    private val printerConnection: DeviceConnection,
-) : EscPosPrinterCommands(printerConnection) {
-    override fun cutPaper(): CPCLPrinterCommands = this
-
-    override fun reset(): CPCLPrinterCommands = this
-}
-
 fun cpclBitmapToBytes(
     bitmap: Bitmap,
     settings: PrinterSettings,
@@ -134,6 +126,10 @@ abstract class PrinterDriver(
         }
         document.close()
     }
+
+    abstract fun reset()
+
+    abstract fun cutPaper()
 }
 
 private fun getFirstUsbDevice(
@@ -148,9 +144,7 @@ open class EscPosDriver(
     private var context: Context,
     settings: PrinterSettings,
 ) : PrinterDriver(context, settings) {
-    protected val commands: EscPosPrinterCommands
-
-    protected open fun createCommands(socket: DeviceConnection): EscPosPrinterCommands = EscPosPrinterCommands(socket)
+    protected val socket: DeviceConnection
 
     private fun getBluetoothSocket(settings: PrinterSettings): BluetoothConnection {
         val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
@@ -202,7 +196,7 @@ open class EscPosDriver(
     }
 
     init {
-        val socket =
+        socket =
             when (settings.`interface`) {
                 Interface.BLUETOOTH -> {
                     getBluetoothSocket(settings)
@@ -223,11 +217,20 @@ open class EscPosDriver(
         if (!socket.isConnected) {
             socket.connect()
         }
-        commands = this.createCommands(socket)
         disconnectOnError {
-            commands.connect()
-            commands.reset()
+            socket.connect()
+            this.reset()
         }
+    }
+
+    override fun reset() {
+        this.socket.write(byteArrayOf(0x1b, 0x40))
+        this.socket.send()
+    }
+
+    override fun cutPaper() {
+        this.socket.write(byteArrayOf(0x1d, 0x56, 0x01))
+        this.socket.send()
     }
 
     override fun printBitmap(bitmap: Bitmap) {
@@ -236,13 +239,14 @@ open class EscPosDriver(
         delayForLength(0f)
         bitmapSlices(ditheredBitmap, heightPx).forEach {
             disconnectOnError {
-                commands.printImage(EscPosPrinterCommands.bitmapToBytes(it, false))
+                socket.write(EscPosPrinterCommands.bitmapToBytes(it, false))
+                socket.send()
             }
             delayForLength(pixelsToCm(heightPx, settings.dpi))
         }
         if (settings.cut) {
             disconnectOnError {
-                commands.cutPaper()
+                this.cutPaper()
             }
             if (settings.cutDelay > 0) {
                 Thread.sleep((settings.cutDelay * 1000).toLong())
@@ -251,7 +255,7 @@ open class EscPosDriver(
             }
         }
         disconnectOnError {
-            commands.reset()
+            this.reset()
         }
     }
 
@@ -262,7 +266,7 @@ open class EscPosDriver(
         // TODO: wait before disconnecting
         Thread.sleep(1000)
         try {
-            commands.disconnect()
+            this.socket.disconnect()
         } finally {
             val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
             when (settings.`interface`) {
@@ -290,13 +294,20 @@ class CpclDriver(
     private var context: Context,
     settings: PrinterSettings,
 ) : EscPosDriver(context, settings) {
-    override fun createCommands(socket: DeviceConnection): EscPosPrinterCommands = CPCLPrinterCommands(socket)
+    override fun reset() {
+        // noop
+    }
+
+    override fun cutPaper() {
+        // noop
+    }
 
     override fun printBitmap(bitmap: Bitmap) {
         val ditheredBitmap = getDitheredBitmap(bitmap)
         delayForLength(0f)
         disconnectOnError {
-            commands.printImage(cpclBitmapToBytes(ditheredBitmap, settings))
+            socket.write(cpclBitmapToBytes(ditheredBitmap, settings))
+            socket.send()
         }
         delayForLength(pixelsToCm(ditheredBitmap.height, settings.dpi))
         if (settings.cut && settings.cutDelay > 0) {
@@ -305,7 +316,7 @@ class CpclDriver(
             lastTime = System.currentTimeMillis()
         }
         disconnectOnError {
-            commands.reset()
+            this.reset()
         }
     }
 }
