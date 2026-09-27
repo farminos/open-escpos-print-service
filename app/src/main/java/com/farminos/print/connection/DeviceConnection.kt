@@ -29,18 +29,14 @@ abstract class DeviceConnection {
         this.data = data
     }
 
-    open fun send(addWaitingTime: Int = 0) {
+    open fun send() {
         if (!this.isConnected) {
             throw EscPosConnectionException("Unable to send data to device.")
         }
         try {
             this.outputStream!!.write(this.data)
             this.outputStream!!.flush()
-            val waitingTime: Int = addWaitingTime + this.data.size / 16
             this.data = ByteArray(0)
-            if (waitingTime > 0) {
-                Thread.sleep(waitingTime.toLong())
-            }
         } catch (e: IOException) {
             e.printStackTrace()
             throw EscPosConnectionException(e.message)
