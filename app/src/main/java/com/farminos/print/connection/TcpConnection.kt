@@ -15,9 +15,9 @@ class TcpConnection(
     override val isConnected: Boolean
         get() = this.socket != null && this.socket!!.isConnected && super.isConnected
 
-    override fun connect(): TcpConnection {
+    override fun connect() {
         if (this.isConnected) {
-            return this
+            return
         }
         try {
             this.socket = Socket()
@@ -32,10 +32,9 @@ class TcpConnection(
             this.disconnect()
             throw EscPosConnectionException("Unable to connect to TCP device.")
         }
-        return this
     }
 
-    override fun disconnect(): TcpConnection {
+    override fun disconnect() {
         this.data = ByteArray(0)
         if (this.outputStream != null) {
             try {
@@ -53,6 +52,5 @@ class TcpConnection(
                 e.printStackTrace()
             }
         }
-        return this
     }
 }

@@ -15,9 +15,9 @@ abstract class DeviceConnection {
         this.data = ByteArray(0)
     }
 
-    abstract fun connect(): DeviceConnection?
+    abstract fun connect()
 
-    abstract fun disconnect(): DeviceConnection?
+    abstract fun disconnect()
 
     open val isConnected: Boolean
         get() = this.outputStream != null

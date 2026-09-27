@@ -21,11 +21,11 @@ class BluetoothConnection(
         get() = this.socket != null && this.socket!!.isConnected && super.isConnected
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
-    override fun connect(): BluetoothConnection {
+    override fun connect() {
         if (this.isConnected) {
-            return this
+            return
         }
-        val bluetoothAdapter = ContextCompat.getSystemService(context, BluetoothManager::class.java)?.adapter ?: return this
+        val bluetoothAdapter = ContextCompat.getSystemService(context, BluetoothManager::class.java)?.adapter ?: return
         val uuid = this.deviceUUID
         try {
             this.socket = this.device.createRfcommSocketToServiceRecord(uuid)
@@ -38,7 +38,6 @@ class BluetoothConnection(
             this.disconnect()
             throw EscPosConnectionException("Unable to connect to bluetooth device.")
         }
-        return this
     }
 
     private val deviceUUID: UUID?
@@ -55,7 +54,7 @@ class BluetoothConnection(
             }
         }
 
-    override fun disconnect(): BluetoothConnection {
+    override fun disconnect() {
         this.data = ByteArray(0)
         if (this.outputStream != null) {
             try {
@@ -73,7 +72,6 @@ class BluetoothConnection(
             }
             this.socket = null
         }
-        return this
     }
 
     companion object {

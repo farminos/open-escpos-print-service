@@ -17,11 +17,10 @@ class UsbConnection(
     private val usbManager: UsbManager,
     val device: UsbDevice?,
 ) : DeviceConnection() {
-    override fun connect(): UsbConnection {
+    override fun connect() {
         if (this.isConnected) {
-            return this
+            return
         }
-
         try {
             this.outputStream = UsbOutputStream(this.usbManager, this.device)
             this.data = ByteArray(0)
@@ -30,20 +29,19 @@ class UsbConnection(
             this.outputStream = null
             throw EscPosConnectionException("Unable to connect to USB device.")
         }
-        return this
     }
 
-    override fun disconnect(): UsbConnection {
+    override fun disconnect() {
         this.data = ByteArray(0)
         if (this.isConnected) {
-            try {
-                this.outputStream!!.close()
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
-            this.outputStream = null
+            return
         }
-        return this
+        try {
+            this.outputStream!!.close()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+        this.outputStream = null
     }
 }
 
