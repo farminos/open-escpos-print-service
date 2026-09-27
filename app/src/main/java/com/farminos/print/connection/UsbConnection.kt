@@ -23,6 +23,7 @@ class UsbConnection(
         }
         try {
             this.outputStream = UsbOutputStream(this.usbManager, this.device)
+            // TODO: inputStream
         } catch (e: IOException) {
             e.printStackTrace()
             this.outputStream = null

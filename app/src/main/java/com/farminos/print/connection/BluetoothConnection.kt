@@ -32,6 +32,7 @@ class BluetoothConnection(
             bluetoothAdapter.cancelDiscovery()
             this.socket!!.connect()
             this.outputStream = this.socket!!.outputStream
+            this.inputStream = this.socket!!.inputStream
         } catch (e: IOException) {
             e.printStackTrace()
             this.disconnect()

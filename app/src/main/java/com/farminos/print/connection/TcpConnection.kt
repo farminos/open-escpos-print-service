@@ -26,6 +26,7 @@ class TcpConnection(
                 this.timeout,
             )
             this.outputStream = this.socket!!.getOutputStream()
+            this.inputStream = this.socket!!.getInputStream()
         } catch (e: IOException) {
             e.printStackTrace()
             this.disconnect()

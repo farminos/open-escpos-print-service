@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.get
 import com.farminos.print.connection.BluetoothConnection
@@ -335,6 +336,15 @@ open class EscPosDriver(
     }
 }
 
+class CpclPrinterStatus(private val status: Int) {
+    val isReady: Boolean get() = ((status shr 0) and 0b1) == 0
+    val hasPaper: Boolean get() = ((status shr 1) and 0b1) == 0
+    val latchIsClosed: Boolean get() = ((status shr 2) and 0b1) == 0
+    val batteryLevelIsOk: Boolean get() = ((status shr 3) and 0b1) == 0
+    val contrast: Int get() = ((status shr 8) and 0b1111)
+    val isReadyToReceiveData: Boolean get() = isReady && hasPaper && latchIsClosed
+}
+
 class CpclDriver(
     private var context: Context,
     settings: PrinterSettings,
@@ -347,10 +357,30 @@ class CpclDriver(
         // noop
     }
 
+    private fun getStatus(): CpclPrinterStatus {
+        socket.write(byteArrayOf(0x1b, 0x68))
+        val res = ByteArray(1)
+        val n = socket.read(res)
+        if (n != 1) {
+            throw Exception("Could not read printer status")
+        }
+        return CpclPrinterStatus(res[0].toInt())
+    }
+
+    private fun waitUntilReady() {
+        // TODO: add a timeout?
+        // TODO: sleep a bit between checks?
+        do {
+            val status = getStatus()
+            val ready = status.isReadyToReceiveData
+        } while (!ready)
+    }
+
     override fun printBitmap(bitmap: Bitmap) {
         val ditheredBitmap = getDitheredBitmap(bitmap)
         delayForLength(0f)
         disconnectOnError {
+            waitUntilReady()
             socket.write(cpclBitmapToBytes(ditheredBitmap, settings))
         }
         delayForLength(pixelsToCm(ditheredBitmap.height, settings.dpi))
@@ -358,9 +388,6 @@ class CpclDriver(
             Thread.sleep((settings.cutDelay * 1000).toLong())
             // Reset speed limit timer
             lastTime = System.currentTimeMillis()
-        }
-        disconnectOnError {
-            this.reset()
         }
     }
 }
