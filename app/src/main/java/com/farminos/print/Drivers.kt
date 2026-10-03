@@ -6,7 +6,6 @@ import android.graphics.Bitmap
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.ParcelFileDescriptor
-import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.get
 import com.farminos.print.connection.BluetoothConnection
@@ -263,11 +262,7 @@ open class EscPosDriver(
                     throw Exception("Unknown interface")
                 }
             }
-        if (!socket.isConnected) {
-            socket.connect()
-        }
         disconnectOnError {
-            socket.connect()
             this.reset()
         }
     }
@@ -312,7 +307,7 @@ open class EscPosDriver(
         // TODO: wait before disconnecting
         Thread.sleep(1000)
         try {
-            this.socket.disconnect()
+            this.socket.close()
         } finally {
             val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
             when (settings.`interface`) {
@@ -336,7 +331,9 @@ open class EscPosDriver(
     }
 }
 
-class CpclPrinterStatus(private val status: Int) {
+class CpclPrinterStatus(
+    private val status: Int,
+) {
     val isReady: Boolean get() = ((status shr 0) and 0b1) == 0
     val hasPaper: Boolean get() = ((status shr 1) and 0b1) == 0
     val latchIsClosed: Boolean get() = ((status shr 2) and 0b1) == 0
