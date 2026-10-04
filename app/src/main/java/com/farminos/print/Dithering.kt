@@ -150,3 +150,29 @@ fun ditherAtkinson(bitmap: Bitmap): Bitmap {
     }
     return output
 }
+
+fun getDitheredBitmap(
+    bitmap: Bitmap,
+    algorithm: Dithering,
+): Bitmap =
+    when (algorithm) {
+        Dithering.NONE -> {
+            bitmap
+        }
+
+        Dithering.GRADIENT -> {
+            ditherGradient(bitmap)
+        }
+
+        Dithering.FLOYD_STEINBERG -> {
+            ditherFloydSteinberg(bitmap)
+        }
+
+        Dithering.ATKINSON -> {
+            ditherAtkinson(bitmap)
+        }
+
+        else -> {
+            throw Exception("Unknown dithering algorithm")
+        }
+    }

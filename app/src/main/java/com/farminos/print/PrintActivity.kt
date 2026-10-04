@@ -31,6 +31,7 @@ import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.lifecycleScope
+import com.farminos.print.driver.createDriver
 import com.google.protobuf.InvalidProtocolBufferException
 import com.izettle.html2bitmap.Html2Bitmap
 import com.izettle.html2bitmap.Html2BitmapConfigurator
