@@ -137,7 +137,7 @@ private fun getDriver(
     uuid: String,
     printerSettings: PrinterSettings,
 ): PrinterDriver {
-    val app: OpenEscPosPrintServiceApplication = context.applicationContext as OpenEscPosPrintServiceApplication
+    val app = context.applicationContext as OpenEscPosPrintServiceApplication
     var driver: PrinterDriver? = null
     if (printerSettings.keepAlive) {
         driver = app.connectedDrivers[uuid]
@@ -157,7 +157,7 @@ private fun closeDriver(
     driver: PrinterDriver,
 ) {
     driver.close()
-    val app: OpenEscPosPrintServiceApplication = context.applicationContext as OpenEscPosPrintServiceApplication
+    val app = context.applicationContext as OpenEscPosPrintServiceApplication
     app.connectedDrivers.remove(uuid)
 }
 

@@ -241,10 +241,7 @@ class OpenEscPosPrintService : PrintService() {
         document: ParcelFileDescriptor?,
     ) {
         val printerId = info.printerId
-        val printer = printersMap[printerId]
-        if (printer == null) {
-            throw Exception("No printer found")
-        }
+        val printer = printersMap[printerId] ?: throw Exception("No printer found")
         if (document == null) {
             throw Exception("No document found")
         }
