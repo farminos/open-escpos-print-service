@@ -390,10 +390,8 @@ class PrintActivity : ComponentActivity() {
     }
 
     private class BluetoothBroadcastReceiver(
-        _context: PrintActivity,
+        val activity: PrintActivity,
     ) : BroadcastReceiver() {
-        val activity = _context
-
         override fun onReceive(
             context: Context,
             intent: Intent,
