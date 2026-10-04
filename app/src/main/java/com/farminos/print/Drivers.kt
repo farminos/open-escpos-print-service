@@ -356,7 +356,7 @@ class CpclDriver(
 
     private fun getStatus(): CpclPrinterStatus {
         socket.write(byteArrayOf(0x1b, 0x68))
-        sleep(10)
+        sleep(20)
         val res = ByteArray(1)
         val n = socket.read(res)
         if (n != 1) {
@@ -367,7 +367,6 @@ class CpclDriver(
 
     private fun waitUntilReady() {
         // TODO: add a timeout?
-        // TODO: sleep a bit between checks?
         do {
             val status = getStatus()
             val ready = status.isReadyToReceiveData
