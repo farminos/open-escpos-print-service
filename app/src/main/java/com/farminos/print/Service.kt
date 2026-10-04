@@ -16,7 +16,7 @@ import android.printservice.PrintService
 import android.printservice.PrinterDiscoverySession
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.farminos.print.driver.createDriver
+import com.farminos.print.driver.useDriver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
 import java.text.DecimalFormat
 
 data class Printer(
+    val uuid: String,
     val address: String,
     val name: String,
 )
@@ -84,7 +85,7 @@ class FarminOSPrinterDiscoverySession(
                     val address = btPrinter.address
                     val name = btPrinter.name
                     PrinterWithSettingsAndInfo(
-                        printer = Printer(address = address, name = name),
+                        printer = Printer(uuid = uuid, address = address, name = name),
                         settings = printerSettings,
                         info = buildPrinterInfo(id, name, printerSettings),
                         isDefault = uuid == settings.defaultPrinter,
@@ -97,14 +98,14 @@ class FarminOSPrinterDiscoverySession(
         return iterateUsbPrinters(context)
             .mapNotNull {
                 val usbId = "%04x:%04x".format(it.vendorId, it.productId)
-                val printerSettings = settings.printersMap.get(usbId) ?: return@mapNotNull null
+                val printerSettings = settings.printersMap[usbId] ?: return@mapNotNull null
                 if (printerSettings.`interface` != Interface.USB) {
                     return@mapNotNull null
                 }
                 val name = printerSettings.name
                 val id = context.generatePrinterId(usbId)
                 return@mapNotNull PrinterWithSettingsAndInfo(
-                    printer = Printer(address = usbId, name = name),
+                    printer = Printer(uuid = usbId, address = usbId, name = name),
                     settings = printerSettings,
                     info = buildPrinterInfo(id, name, printerSettings),
                     isDefault = usbId == settings.defaultPrinter,
@@ -121,7 +122,7 @@ class FarminOSPrinterDiscoverySession(
                     val address = uuid
                     val name = printerSettings.name
                     PrinterWithSettingsAndInfo(
-                        printer = Printer(address = address, name = name),
+                        printer = Printer(uuid = uuid, address = address, name = name),
                         settings = printerSettings,
                         info = buildPrinterInfo(id, name, printerSettings),
                         isDefault = uuid == settings.defaultPrinter,
@@ -254,14 +255,10 @@ class FarminOSPrintService : PrintService() {
         if (mediaSize == null || resolution == null) {
             throw Exception("No media size or resolution in print job info")
         }
-        val instance = createDriver(this@FarminOSPrintService, printer.settings)
-        try {
+        useDriver(this@FarminOSPrintService, printer.printer.uuid, printer.settings) {
             for (i in 0 until info.copies) {
-                instance.printDocument(copy)
+                it.printDocument(copy)
             }
-        } finally {
-            // TODO: move this somewhere else
-            instance.disconnect()
         }
     }
 

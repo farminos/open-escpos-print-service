@@ -17,6 +17,7 @@ import com.farminos.print.connection.DeviceConnection
 import com.farminos.print.connection.TcpConnection
 import com.farminos.print.connection.UsbConnection
 import com.farminos.print.pdfToBitmaps
+import java.io.Closeable
 import java.lang.Thread.sleep
 
 private fun getFirstUsbDevice(
@@ -27,11 +28,10 @@ private fun getFirstUsbDevice(
         id == "%04x:%04x".format(it.vendorId, it.productId)
     } ?: error("Usb device $id not found")
 
-// TODO: make PrinterDriver Closeable
 abstract class PrinterDriver(
     protected val context: Context,
     protected val settings: PrinterSettings,
-) {
+) : Closeable {
     protected var lastTime: Long? = null
     protected val socket: DeviceConnection
 
@@ -54,96 +54,36 @@ abstract class PrinterDriver(
                     throw Exception("Unknown interface")
                 }
             }
-        disconnectOnError {
-            reset()
-        }
+        reset()
     }
 
     private fun getBluetoothSocket(settings: PrinterSettings): BluetoothConnection {
-        val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
-        var socket: BluetoothConnection? = null
-        if (settings.keepAlive) {
-            socket = app.escPosBluetoothSockets[settings.address]
-        }
-        if (socket == null) {
-            val bluetoothManager: BluetoothManager =
-                ContextCompat.getSystemService(
-                    context,
-                    BluetoothManager::class.java,
-                ) ?: error("Can't get BluetoothManager")
-            val bluetoothAdapter = bluetoothManager.adapter
-            val device = bluetoothAdapter.getRemoteDevice(settings.address)
-            socket = BluetoothConnection(context, device)
-            app.escPosBluetoothSockets[settings.address] = socket
-        }
-        return socket
+        val bluetoothManager: BluetoothManager =
+            ContextCompat.getSystemService(
+                context,
+                BluetoothManager::class.java,
+            ) ?: error("Can't get BluetoothManager")
+        val bluetoothAdapter = bluetoothManager.adapter
+        val device = bluetoothAdapter.getRemoteDevice(settings.address)
+        return BluetoothConnection(context, device)
     }
 
     private fun getUsbSocket(settings: PrinterSettings): UsbConnection {
-        val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
-        var socket: UsbConnection? = null
-        if (settings.keepAlive) {
-            socket = app.escPosUsbSockets[settings.address]
-        }
-        if (socket == null) {
-            val usbManager = ContextCompat.getSystemService(context, UsbManager::class.java) ?: error("Can't get UsbManager")
-            val usbDevice = getFirstUsbDevice(usbManager, settings.address)
-            socket = UsbConnection(usbManager, usbDevice)
-            app.escPosUsbSockets[settings.address] = socket
-        }
-        return socket
+        val usbManager = ContextCompat.getSystemService(context, UsbManager::class.java) ?: error("Can't get UsbManager")
+        val usbDevice = getFirstUsbDevice(usbManager, settings.address)
+        return UsbConnection(usbManager, usbDevice)
     }
 
     private fun getTcpSocket(settings: PrinterSettings): TcpConnection {
-        val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
-        var socket: TcpConnection? = null
-        if (settings.keepAlive) {
-            socket = app.escPosTcpSockets[settings.name]
-        }
-        if (socket == null) {
-            val addressAndPort = settings.address.split(":")
-            socket = TcpConnection(addressAndPort[0], addressAndPort[1].toInt(), 5000)
-            app.escPosTcpSockets[settings.name] = socket
-        }
-        return socket
+        val addressAndPort = settings.address.split(":")
+        // TODO: configurable timeout?
+        return TcpConnection(addressAndPort[0], addressAndPort[1].toInt(), 5000)
     }
 
-    fun disconnect(force: Boolean = false) {
-        if (settings.keepAlive && !force) {
-            return
-        }
+    override fun close() {
         sleep(1000)
-        try {
-            socket.close()
-        } finally {
-            val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
-            when (settings.`interface`) {
-                Interface.BLUETOOTH -> {
-                    app.escPosBluetoothSockets.remove(settings.address)
-                }
-
-                Interface.USB -> {
-                    app.escPosUsbSockets.remove(settings.address)
-                }
-
-                Interface.TCP_IP -> {
-                    app.escPosTcpSockets.remove(settings.name)
-                }
-
-                else -> {
-                    throw Exception("Unknown interface")
-                }
-            }
-        }
-    }
-
-    protected fun disconnectOnError(block: () -> Unit) {
-        try {
-            block()
-        } catch (exception: Exception) {
-            disconnect(true)
-            throw exception
-        }
+        // TODO: try / catch
+        socket.close()
     }
 
     protected fun delayForLength(cm: Float) {
@@ -171,8 +111,8 @@ abstract class PrinterDriver(
     abstract fun cutPaper()
 }
 
-fun createDriver(
-    ctx: Context,
+private fun createDriver(
+    context: Context,
     printerSettings: PrinterSettings,
 ): PrinterDriver {
     val driverClass =
@@ -189,5 +129,46 @@ fun createDriver(
                 throw Exception("Unrecognized driver in settings")
             }
         }
-    return driverClass(ctx, printerSettings)
+    return driverClass(context, printerSettings)
+}
+
+private fun getDriver(
+    context: Context,
+    uuid: String,
+    printerSettings: PrinterSettings,
+): PrinterDriver {
+    val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
+    var driver: PrinterDriver? = null
+    if (printerSettings.keepAlive) {
+        driver = app.connectedDrivers[uuid]
+    }
+    if (driver == null) {
+        driver = createDriver(context, printerSettings)
+    }
+    if (printerSettings.keepAlive) {
+        app.connectedDrivers[uuid] = driver
+    }
+    return driver
+}
+
+fun useDriver(
+    context: Context,
+    uuid: String,
+    printerSettings: PrinterSettings,
+    block: (driver: PrinterDriver) -> Unit,
+) {
+    val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
+    val driver = getDriver(context, uuid, printerSettings)
+    try {
+        block(driver)
+    } catch (exception: Exception) {
+        driver.close()
+        app.connectedDrivers.remove(uuid)
+        throw exception
+    } finally {
+        if (!printerSettings.keepAlive) {
+            driver.close()
+            app.connectedDrivers.remove(uuid)
+        }
+    }
 }

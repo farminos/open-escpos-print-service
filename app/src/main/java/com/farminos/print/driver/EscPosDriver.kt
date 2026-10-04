@@ -77,23 +77,17 @@ class EscPosDriver(
         val heightPx = 128
         delayForLength(0f)
         bitmapSlices(ditheredBitmap, heightPx).forEach {
-            disconnectOnError {
-                socket.write(escPosBitmapToBytes(it))
-            }
+            socket.write(escPosBitmapToBytes(it))
             delayForLength(pixelsToCm(heightPx, settings.dpi))
         }
         if (settings.cut) {
-            disconnectOnError {
-                cutPaper()
-            }
+            cutPaper()
             if (settings.cutDelay > 0) {
                 sleep((settings.cutDelay * 1000).toLong())
                 // Reset speed limit timer
                 lastTime = System.currentTimeMillis()
             }
         }
-        disconnectOnError {
-            reset()
-        }
+        reset()
     }
 }

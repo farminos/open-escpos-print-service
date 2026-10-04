@@ -31,7 +31,7 @@ import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.lifecycleScope
-import com.farminos.print.driver.createDriver
+import com.farminos.print.driver.useDriver
 import com.google.protobuf.InvalidProtocolBufferException
 import com.izettle.html2bitmap.Html2Bitmap
 import com.izettle.html2bitmap.Html2BitmapConfigurator
@@ -320,8 +320,7 @@ class PrintActivity : ComponentActivity() {
         if (printerSettings == null) {
             throw Exception("Could not find printer settings.")
         }
-        val instance = createDriver(this, printerSettings)
-        try {
+        useDriver(this, uuid, printerSettings) { driver ->
             uris.forEach {
                 val orientation =
                     contentResolver.openInputStream(it)?.use { inputStream ->
@@ -331,11 +330,9 @@ class PrintActivity : ComponentActivity() {
                     val bitmap = BitmapFactory.decodeStream(inputStream)
                     val scaledBitmap = scaleBitmap(rotateBitmap(bitmap, orientation), printerSettings)
                     val rgbBitmap = argbToRgbOnWhite(scaledBitmap)
-                    instance.printBitmap(rgbBitmap)
+                    driver.printBitmap(rgbBitmap)
                 }
             }
-        } finally {
-            instance.disconnect()
         }
     }
 
@@ -358,8 +355,7 @@ class PrintActivity : ComponentActivity() {
         val marginRight = printerSettings.marginRight
         val marginBottom = printerSettings.marginBottom
         val dpi = printerSettings.dpi
-        val instance = createDriver(this, printerSettings)
-        try {
+        useDriver(this, uuid, printerSettings) { driver ->
             renderPages(
                 this,
                 width,
@@ -370,10 +366,8 @@ class PrintActivity : ComponentActivity() {
                 marginRight,
                 marginBottom,
             ).forEach {
-                instance.printBitmap(it)
+                driver.printBitmap(it)
             }
-        } finally {
-            instance.disconnect()
         }
     }
 

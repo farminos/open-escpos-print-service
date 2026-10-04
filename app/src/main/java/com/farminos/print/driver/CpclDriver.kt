@@ -106,10 +106,8 @@ class CpclDriver(
     override fun printBitmap(bitmap: Bitmap) {
         val ditheredBitmap = getDitheredBitmap(bitmap, settings.dithering)
         delayForLength(0f)
-        disconnectOnError {
-            waitUntilReady()
-            socket.write(cpclBitmapToBytes(ditheredBitmap, settings))
-        }
+        waitUntilReady()
+        socket.write(cpclBitmapToBytes(ditheredBitmap, settings))
         delayForLength(pixelsToCm(ditheredBitmap.height, settings.dpi))
         if (settings.cut && settings.cutDelay > 0) {
             sleep((settings.cutDelay * 1000).toLong())
