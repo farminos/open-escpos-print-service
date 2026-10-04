@@ -81,9 +81,11 @@ abstract class PrinterDriver(
     }
 
     override fun close() {
-        sleep(1000)
-        // TODO: try / catch
-        socket.close()
+        try {
+            socket.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     protected fun delayForLength(cm: Float) {

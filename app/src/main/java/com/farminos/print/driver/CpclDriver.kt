@@ -114,5 +114,7 @@ class CpclDriver(
             // Reset speed limit timer
             lastTime = System.currentTimeMillis()
         }
+        // Wait until ready again as the Citizen CMP-30 connected through Bluetooth will cancel the print if the connection is closed
+        waitUntilReady()
     }
 }
