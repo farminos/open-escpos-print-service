@@ -151,24 +151,31 @@ private fun getDriver(
     return driver
 }
 
+private fun closeDriver(
+    context: Context,
+    uuid: String,
+    driver: PrinterDriver,
+) {
+    driver.close()
+    val app: OpenEscPosPrintServiceApplication = context.applicationContext as OpenEscPosPrintServiceApplication
+    app.connectedDrivers.remove(uuid)
+}
+
 fun useDriver(
     context: Context,
     uuid: String,
     printerSettings: PrinterSettings,
     block: (driver: PrinterDriver) -> Unit,
 ) {
-    val app: OpenEscPosPrintServiceApplication = context.applicationContext as OpenEscPosPrintServiceApplication
     val driver = getDriver(context, uuid, printerSettings)
     try {
         block(driver)
     } catch (exception: Exception) {
-        driver.close()
-        app.connectedDrivers.remove(uuid)
+        closeDriver(context, uuid, driver)
         throw exception
     } finally {
         if (!printerSettings.keepAlive) {
-            driver.close()
-            app.connectedDrivers.remove(uuid)
+            closeDriver(context, uuid, driver)
         }
     }
 }

@@ -132,7 +132,7 @@ class OpenEscPosPrinterDiscoverySession(
     }
 
     private fun listPrinters(settings: Settings): List<PrinterWithSettingsAndInfo> =
-        (this.listBluetoothPrinters(settings) + this.listUsbPrinters(settings) + this.listNetworkPrinters(settings)).sortedBy {
+        (listBluetoothPrinters(settings) + listUsbPrinters(settings) + listNetworkPrinters(settings)).sortedBy {
             if (it.isDefault) 0 else 1
         }
 
