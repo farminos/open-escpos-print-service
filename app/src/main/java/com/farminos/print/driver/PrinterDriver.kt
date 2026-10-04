@@ -9,7 +9,7 @@ import android.os.ParcelFileDescriptor
 import androidx.core.content.ContextCompat
 import com.farminos.print.Driver
 import com.farminos.print.Interface
-import com.farminos.print.OpenESCPOSPrintService
+import com.farminos.print.OpenEscPosPrintServiceApplication
 import com.farminos.print.PrinterSettings
 import com.farminos.print.bitmapCropWhiteEnd
 import com.farminos.print.connection.BluetoothConnection
@@ -137,7 +137,7 @@ private fun getDriver(
     uuid: String,
     printerSettings: PrinterSettings,
 ): PrinterDriver {
-    val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
+    val app: OpenEscPosPrintServiceApplication = context.applicationContext as OpenEscPosPrintServiceApplication
     var driver: PrinterDriver? = null
     if (printerSettings.keepAlive) {
         driver = app.connectedDrivers[uuid]
@@ -157,7 +157,7 @@ fun useDriver(
     printerSettings: PrinterSettings,
     block: (driver: PrinterDriver) -> Unit,
 ) {
-    val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
+    val app: OpenEscPosPrintServiceApplication = context.applicationContext as OpenEscPosPrintServiceApplication
     val driver = getDriver(context, uuid, printerSettings)
     try {
         block(driver)

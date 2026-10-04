@@ -33,8 +33,8 @@ data class Printer(
     val name: String,
 )
 
-class FarminOSPrinterDiscoverySession(
-    private val context: FarminOSPrintService,
+class OpenEscPosPrinterDiscoverySession(
+    private val context: OpenEscPosPrintService,
 ) : PrinterDiscoverySession() {
     private val scope = CoroutineScope(Dispatchers.Main)
     private var job: Job? = null
@@ -196,16 +196,16 @@ fun buildPrinterInfo(
         ).build()
 }
 
-class FarminOSPrintService : PrintService() {
+class OpenEscPosPrintService : PrintService() {
     val printersMap: MutableMap<PrinterId, PrinterWithSettingsAndInfo> = mutableMapOf()
-    private lateinit var session: FarminOSPrinterDiscoverySession
+    private lateinit var session: OpenEscPosPrinterDiscoverySession
     private val serviceScope =
         CoroutineScope(
             Dispatchers.IO,
         )
 
     override fun onCreatePrinterDiscoverySession(): PrinterDiscoverySession {
-        session = FarminOSPrinterDiscoverySession(this)
+        session = OpenEscPosPrinterDiscoverySession(this)
         return session
     }
 
@@ -249,13 +249,13 @@ class FarminOSPrintService : PrintService() {
             throw Exception("No document found")
         }
         // copy to make the file seekable
-        val copy = copyToTmpFile(this@FarminOSPrintService.cacheDir, document.fileDescriptor)
+        val copy = copyToTmpFile(this@OpenEscPosPrintService.cacheDir, document.fileDescriptor)
         val mediaSize = info.attributes.mediaSize
         val resolution = info.attributes.resolution
         if (mediaSize == null || resolution == null) {
             throw Exception("No media size or resolution in print job info")
         }
-        useDriver(this@FarminOSPrintService, printer.printer.uuid, printer.settings) {
+        useDriver(this@OpenEscPosPrintService, printer.printer.uuid, printer.settings) {
             for (i in 0 until info.copies) {
                 it.printDocument(copy)
             }
