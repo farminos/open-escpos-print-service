@@ -13,6 +13,7 @@ import com.farminos.print.connection.DeviceConnection
 import com.farminos.print.connection.TcpConnection
 import com.farminos.print.connection.UsbConnection
 import java.io.ByteArrayOutputStream
+import java.lang.Thread.sleep
 import kotlin.math.ceil
 
 fun initGSv0Command(
@@ -356,6 +357,7 @@ class CpclDriver(
 
     private fun getStatus(): CpclPrinterStatus {
         socket.write(byteArrayOf(0x1b, 0x68))
+        sleep(10)
         val res = ByteArray(1)
         val n = socket.read(res)
         if (n != 1) {

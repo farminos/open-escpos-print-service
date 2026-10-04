@@ -15,14 +15,26 @@ import java.nio.ByteBuffer
 class UsbConnection(
     usbManager: UsbManager,
     device: UsbDevice,
+    timeout: Int = 5000,
 ) : DeviceConnection() {
+    private val usbConnection: UsbDeviceConnection = usbManager.openDevice(device) ?: throw IOException("Unable to open USB connection")
+
     init {
-        val usbConnection: UsbDeviceConnection = usbManager.openDevice(device) ?: throw IOException("Unable to open USB connection")
         val usbInterface: UsbInterface = findPrinterInterface(device)
-        val usbEndpoint: UsbEndpoint = findEndpointIn(usbInterface)
-        outputStream = UsbOutputStream(usbConnection, usbInterface, usbEndpoint)
-        // TODO: implement input
-        inputStream = UsbInputStream()
+        val usbEndpointOut: UsbEndpoint = findEndpoint(usbInterface, UsbConstants.USB_DIR_OUT)
+        val usbEndpointIn: UsbEndpoint = findEndpoint(usbInterface, UsbConstants.USB_DIR_IN)
+        // TODO: timeout for outputStream
+        outputStream = UsbOutputStream(usbConnection, usbInterface, usbEndpointOut)
+        inputStream = UsbInputStream(usbConnection, usbInterface, usbEndpointIn, timeout)
+    }
+
+    override fun close() {
+        super.close()
+        try {
+            usbConnection.close()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
     }
 }
 
@@ -37,11 +49,14 @@ fun findPrinterInterface(usbDevice: UsbDevice): UsbInterface {
     throw IOException("Unable to find USB interface")
 }
 
-fun findEndpointIn(usbInterface: UsbInterface): UsbEndpoint {
+fun findEndpoint(
+    usbInterface: UsbInterface,
+    direction: Int,
+): UsbEndpoint {
     val endpointsCount = usbInterface.endpointCount
     for (i in 0..<endpointsCount) {
         val endpoint = usbInterface.getEndpoint(i)
-        if (endpoint.type == UsbConstants.USB_ENDPOINT_XFER_BULK && endpoint.direction == UsbConstants.USB_DIR_OUT) {
+        if (endpoint.type == UsbConstants.USB_ENDPOINT_XFER_BULK && endpoint.direction == direction) {
             return endpoint
         }
     }
@@ -86,12 +101,53 @@ class UsbOutputStream(
     }
 
     override fun close() {
-        usbConnection.close()
+        try {
+            usbConnection.releaseInterface(usbInterface)
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
     }
 }
 
-class UsbInputStream : InputStream() {
+class UsbInputStream(
+    private val usbConnection: UsbDeviceConnection,
+    private val usbInterface: UsbInterface,
+    private val usbEndpoint: UsbEndpoint,
+    private val timeout: Int,
+) : InputStream() {
+    override fun read(
+        bytes: ByteArray,
+        offset: Int,
+        length: Int,
+    ): Int {
+        if (!usbConnection.claimInterface(usbInterface, true)) {
+            throw IOException("Unable to claim USB interface")
+        }
+        return usbConnection
+            .bulkTransfer(
+                usbEndpoint,
+                bytes,
+                offset,
+                length,
+                timeout,
+            ).also {
+                if (it < 0) {
+                    throw IOException("USB read failed: $it")
+                }
+            }
+    }
+
     override fun read(): Int {
-        TODO("Not yet implemented")
+        val buffer = ByteArray(1)
+        val count = read(buffer, 0, 1)
+        return if (count == -1) -1 else buffer[0].toInt() and 0xFF
+    }
+
+    override fun close() {
+        try {
+            usbConnection.releaseInterface(usbInterface)
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
     }
 }
