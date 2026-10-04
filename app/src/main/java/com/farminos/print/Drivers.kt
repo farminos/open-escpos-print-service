@@ -159,7 +159,7 @@ abstract class PrinterDriver(
         if (lastTime != null && settings.speedLimit > 0) {
             val elapsed = now - lastTime!!
             val duration = (cm / settings.speedLimit * 1000).toLong()
-            Thread.sleep(Math.max(0, duration - elapsed))
+            sleep(Math.max(0, duration - elapsed))
         }
         lastTime = now
     }
@@ -264,16 +264,16 @@ open class EscPosDriver(
                 }
             }
         disconnectOnError {
-            this.reset()
+            reset()
         }
     }
 
     override fun reset() {
-        this.socket.write(byteArrayOf(0x1b, 0x40))
+        socket.write(byteArrayOf(0x1b, 0x40))
     }
 
     override fun cutPaper() {
-        this.socket.write(byteArrayOf(0x1d, 0x56, 0x01))
+        socket.write(byteArrayOf(0x1d, 0x56, 0x01))
     }
 
     override fun printBitmap(bitmap: Bitmap) {
@@ -288,16 +288,16 @@ open class EscPosDriver(
         }
         if (settings.cut) {
             disconnectOnError {
-                this.cutPaper()
+                cutPaper()
             }
             if (settings.cutDelay > 0) {
-                Thread.sleep((settings.cutDelay * 1000).toLong())
+                sleep((settings.cutDelay * 1000).toLong())
                 // Reset speed limit timer
                 lastTime = System.currentTimeMillis()
             }
         }
         disconnectOnError {
-            this.reset()
+            reset()
         }
     }
 
@@ -305,10 +305,9 @@ open class EscPosDriver(
         if (settings.keepAlive && !force) {
             return
         }
-        // TODO: wait before disconnecting
-        Thread.sleep(1000)
+        sleep(1000)
         try {
-            this.socket.close()
+            socket.close()
         } finally {
             val app: OpenESCPOSPrintService = context.applicationContext as OpenESCPOSPrintService
             when (settings.`interface`) {
@@ -344,7 +343,7 @@ class CpclPrinterStatus(
 }
 
 class CpclDriver(
-    private var context: Context,
+    context: Context,
     settings: PrinterSettings,
 ) : EscPosDriver(context, settings) {
     override fun reset() {
@@ -384,7 +383,7 @@ class CpclDriver(
         }
         delayForLength(pixelsToCm(ditheredBitmap.height, settings.dpi))
         if (settings.cut && settings.cutDelay > 0) {
-            Thread.sleep((settings.cutDelay * 1000).toLong())
+            sleep((settings.cutDelay * 1000).toLong())
             // Reset speed limit timer
             lastTime = System.currentTimeMillis()
         }
