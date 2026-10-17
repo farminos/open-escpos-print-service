@@ -153,7 +153,7 @@ private fun getDriver(
     return driver
 }
 
-fun closeDriver(
+private fun closeDriver(
     context: Context,
     uuid: String,
     driver: PrinterDriver,
@@ -161,6 +161,15 @@ fun closeDriver(
     driver.close()
     val app = context.applicationContext as OpenEscPosPrintServiceApplication
     app.connectedDrivers.remove(uuid)
+}
+
+fun closeDriverUuid(
+    context: Context,
+    uuid: String,
+) {
+    val app = context.applicationContext as OpenEscPosPrintServiceApplication
+    val driver = app.connectedDrivers[uuid] ?: return
+    closeDriver(context, uuid, driver)
 }
 
 fun useDriver(

@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.farminos.print.driver.closeDriverUuid
 import com.farminos.print.ui.theme.OpenESCPOSPrintServiceTheme
 
 @Composable
@@ -275,9 +276,7 @@ fun PrinterCard(
                             return@LabelledSwitch
                         }
                         val app = context.applicationContext as OpenEscPosPrintServiceApplication
-                        val driver = app.connectedDrivers[uuid] ?: return@LabelledSwitch
-                        driver.close()
-                        app.connectedDrivers.remove(uuid)
+                        closeDriverUuid(app, uuid)
                     },
                 )
                 if (settings.`interface` == Interface.TCP_IP) {

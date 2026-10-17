@@ -31,6 +31,7 @@ import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.lifecycleScope
+import com.farminos.print.driver.closeDriverUuid
 import com.farminos.print.driver.useDriver
 import com.google.protobuf.InvalidProtocolBufferException
 import com.izettle.html2bitmap.Html2Bitmap
@@ -130,6 +131,7 @@ class PrintActivity : ComponentActivity() {
     fun deletePrinterSetting(uuid: String) {
         appCoroutineScope.launch {
             this@PrintActivity.settingsDataStore.updateData { currentSettings ->
+                closeDriverUuid(this@PrintActivity, uuid)
                 val builder = currentSettings.toBuilder()
                 builder.removePrinters(uuid)
                 if (uuid == builder.defaultPrinter) {
