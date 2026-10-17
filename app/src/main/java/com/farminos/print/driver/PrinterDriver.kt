@@ -153,7 +153,7 @@ private fun getDriver(
     return driver
 }
 
-private fun closeDriver(
+fun closeDriver(
     context: Context,
     uuid: String,
     driver: PrinterDriver,

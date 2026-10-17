@@ -271,6 +271,13 @@ fun PrinterCard(
                         context.updatePrinterSetting(uuid = uuid) {
                             it.setKeepAlive(keepAlive)
                         }
+                        if (keepAlive) {
+                            return@LabelledSwitch
+                        }
+                        val app = context.applicationContext as OpenEscPosPrintServiceApplication
+                        val driver = app.connectedDrivers[uuid] ?: return@LabelledSwitch
+                        driver.close()
+                        app.connectedDrivers.remove(uuid)
                     },
                 )
                 if (settings.`interface` == Interface.TCP_IP) {
