@@ -1,0 +1,8 @@
+This is an Android app that provides a PrintService for label and receipt printers.
+
+It supports ESC/POS printers like the Netum G5 or MTP-II. It also supports Citizen printers using the CPCL protocol like the CMP-30.
+
+You can connect printers through Bluetooth, USB or a TCP socket.
+
+License: GPLv3
+Source code: https://github.com/farminos/open-escpos-print-service

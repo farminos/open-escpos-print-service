@@ -1,0 +1,1 @@
+This is a PrintService for label and receipt printers (ESC/POS or CPCL)
