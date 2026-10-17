@@ -90,4 +90,12 @@ class EscPosDriver(
         }
         reset()
     }
+
+    override fun close() {
+        // Some printers will stop printing as soon as the connection is closed.
+        // We should wait for printer status before closing, but different printers use different commands to get their status; this would need to be implemented in subclasses.
+        // As a workaround and to preserve <= v1.4.1 behavior, we wait a second before disconnecting.
+        sleep(1000)
+        super.close()
+    }
 }
