@@ -73,6 +73,7 @@ jobs:
             --ks-pass env:STORE_PASSWORD \
             --key-pass env:KEY_PASSWORD \
             --out "$SIGNED" \
+            --alignment-preserved \
             "$ALIGNED"
 
           "$TOOLS/apksigner" verify --verbose "$SIGNED"
