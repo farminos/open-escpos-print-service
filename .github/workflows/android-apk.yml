@@ -2,9 +2,6 @@ name: Build Signed Android APK
 
 on:
   push:
-    branches:
-      - master
-      - main
     tags:
       - "v*"
   workflow_dispatch:
