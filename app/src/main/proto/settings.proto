@@ -6,6 +6,7 @@ option java_multiple_files = true;
 enum Driver {
   ESC_POS = 0;
   CPCL = 1;
+  ZPL = 2;
 }
 
 enum Interface {

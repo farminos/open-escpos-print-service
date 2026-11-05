@@ -127,6 +127,10 @@ private fun createDriver(
                 ::CpclDriver
             }
 
+            Driver.ZPL -> {
+                ::ZplDriver
+            }
+
             else -> {
                 throw Exception("Unrecognized driver in settings")
             }
