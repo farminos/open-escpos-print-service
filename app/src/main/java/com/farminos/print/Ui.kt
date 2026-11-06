@@ -39,7 +39,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.farminos.print.driver.closeDriverUuid
 import com.farminos.print.ui.theme.OpenESCPOSPrintServiceTheme
@@ -123,6 +125,10 @@ fun MenuSelect(
         Text(text = label)
         Box {
             TextField(
+                textStyle =
+                    TextStyle(
+                        textAlign = TextAlign.End,
+                    ),
                 value = selectedOption?.label ?: "",
                 onValueChange = {
                     // noop
@@ -148,6 +154,7 @@ fun MenuSelect(
                         ),
             )
             DropdownMenu(
+                modifier = Modifier.align(Alignment.TopEnd),
                 expanded = expanded,
                 onDismissRequest = {
                     expanded = false
@@ -204,6 +211,10 @@ fun <T> LabelledTextField(
     ) {
         Text(text = label)
         TextField(
+            textStyle =
+                TextStyle(
+                    textAlign = TextAlign.End,
+                ),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             value = valueState,
             onValueChange = {
