@@ -127,6 +127,10 @@ private fun createDriver(
                 ::CpclDriver
             }
 
+            Driver.TSPL -> {
+                ::TsplDriver
+            }
+
             else -> {
                 throw Exception("Unrecognized driver in settings")
             }

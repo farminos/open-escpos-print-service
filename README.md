@@ -2,8 +2,10 @@
 
 This is an Android app that provides a [PrintService](https://developer.android.com/reference/android/printservice/PrintService) for label and receipt printers.
 
-It supports ESC/POS printers like the Netum G5 or MTP-II.
-It also supports Citizen printers using the CPCL protocol.
+## Supported printers
+ * ESC/POS printers like the Netum G5 or MTP-II;
+ * CPCL printers like the Citizen CMP-30;
+ * TSPL label printers, such as the 4x6 shipping label printers sold as Jadens, MUNBYN, Rollo, Xprinter and similar.
 
 You can connect printers through Bluetooth, USB or a TCP socket.
 

@@ -322,6 +322,7 @@ fun PrinterCard(
                         arrayOf(
                             Option(value = Driver.ESC_POS_VALUE, label = "ESC / POS"),
                             Option(value = Driver.CPCL_VALUE, label = "CPCL"),
+                            Option(value = Driver.TSPL_VALUE, label = "TSPL"),
                         ),
                     selectedValue = settings.driverValue,
                     onSelect = { value ->
@@ -330,20 +331,66 @@ fun PrinterCard(
                         }
                     },
                 )
-                MenuSelect(
-                    label = "Media type",
-                    options =
-                        arrayOf(
-                            Option(value = 0, label = "Receipt"),
-                            Option(value = 1, label = "Label"),
-                        ),
-                    selectedValue = if (settings.cut) 1 else 0,
-                    onSelect = { value ->
-                        context.updatePrinterSetting(uuid = uuid) {
-                            it.setCut(value == 1)
-                        }
-                    },
-                )
+                if (settings.driver == Driver.TSPL) {
+                    MenuSelect(
+                        label = "TSPL Media type",
+                        options =
+                            arrayOf(
+                                Option(value = TsplMediaType.GAP_VALUE, label = "Gap"),
+                                Option(value = TsplMediaType.BLACK_MARK_VALUE, label = "Black mark"),
+                                Option(value = TsplMediaType.CONTINUOUS_VALUE, label = "Continuous"),
+                            ),
+                        selectedValue = settings.tsplMediaTypeValue,
+                        onSelect = { value ->
+                            context.updatePrinterSetting(uuid = uuid) {
+                                it.setTsplMediaTypeValue(value)
+                            }
+                        },
+                    )
+                    if (settings.tsplMediaType != TsplMediaType.CONTINUOUS) {
+                        LabelledTextField(
+                            label = "TSPL Gap / mark (cm)",
+                            value = settings.tsplGap.toString(),
+                            transform = { value ->
+                                value.toFloatOrNull()
+                            },
+                            onValueChange = { gap ->
+                                context.updatePrinterSetting(uuid = uuid) {
+                                    it.setTsplGap(gap)
+                                }
+                            },
+                        )
+                    }
+                    MenuSelect(
+                        label = "TSPL Density",
+                        options =
+                            (1..15)
+                                .map { value ->
+                                    Option(value = value, label = value.toString())
+                                }.toTypedArray(),
+                        selectedValue = settings.tsplDensity,
+                        onSelect = { value ->
+                            context.updatePrinterSetting(uuid = uuid) {
+                                it.setTsplDensity(value)
+                            }
+                        },
+                    )
+                } else {
+                    MenuSelect(
+                        label = "Media type",
+                        options =
+                            arrayOf(
+                                Option(value = 0, label = "Receipt"),
+                                Option(value = 1, label = "Label"),
+                            ),
+                        selectedValue = if (settings.cut) 1 else 0,
+                        onSelect = { value ->
+                            context.updatePrinterSetting(uuid = uuid) {
+                                it.setCut(value == 1)
+                            }
+                        },
+                    )
+                }
                 MenuSelect(
                     label = "Dithering",
                     options =
@@ -631,6 +678,9 @@ val DEFAULT_PRINTER_SETTINGS: PrinterSettings =
         .newBuilder()
         .setEnabled(false)
         .setDriver(Driver.ESC_POS)
+        .setTsplMediaType(TsplMediaType.GAP)
+        .setTsplGap(0.3F)
+        .setTsplDensity(7)
         .setDithering(Dithering.GRADIENT)
         .setDpi(203)
         .setWidth(5.0F)

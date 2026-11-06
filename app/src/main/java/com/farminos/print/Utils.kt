@@ -207,6 +207,8 @@ fun cmToPixels(
     dpi: Int,
 ): Int = (cm / INCH * dpi).toInt()
 
+fun cmToInches(cm: Float): Float = cm / INCH
+
 fun pixelsToCm(
     pixels: Int,
     dpi: Int,
