@@ -5,6 +5,7 @@ import android.graphics.Color
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
 import androidx.core.graphics.set
+import kotlin.math.roundToInt
 
 fun ditherGradient(bitmap: Bitmap): Bitmap {
     // Dithering logic from com.dantsu.escposprinter.EscPosPrinterCommands
@@ -44,17 +45,21 @@ fun ditherGradient(bitmap: Bitmap): Bitmap {
     return output
 }
 
-fun getLuminanceData(bitmap: Bitmap): DoubleArray {
+fun luminance(color: Int): Int {
+    val red = (color shr 16) and 255
+    val green = (color shr 8) and 255
+    val blue = color and 255
+    return (0.299 * red + 0.587 * green + 0.114 * blue).roundToInt()
+}
+
+fun getLuminanceData(bitmap: Bitmap): IntArray {
     val width = bitmap.width
     val height = bitmap.height
-    val pixels = DoubleArray(width * height)
+    val pixels = IntArray(width * height)
     for (y in 0 until height) {
         for (x in 0 until width) {
             val color = bitmap[x, y]
-            val red = (color shr 16) and 255
-            val green = (color shr 8) and 255
-            val blue = color and 255
-            pixels[y * width + x] = 0.299 * red + 0.587 * green + 0.114 * blue
+            pixels[y * width + x] = luminance(color)
         }
     }
     return pixels
@@ -70,10 +75,10 @@ fun ditherFloydSteinberg(bitmap: Bitmap): Bitmap {
         for (x in 0 until width) {
             val index = y * width + x
             val oldPixel = pixels[index]
-            val newPixel = if (oldPixel < 128.0) 0.0 else 255.0
+            val newPixel = if (oldPixel < 128) 0 else 255
             val error = oldPixel - newPixel
             output[x, y] =
-                if (newPixel == 0.0) {
+                if (newPixel == 0) {
                     Color.BLACK
                 } else {
                     Color.WHITE
@@ -84,15 +89,15 @@ fun ditherFloydSteinberg(bitmap: Bitmap): Bitmap {
             //       3/16  5/16  1/16
             //
             if (x + 1 < width) {
-                pixels[index + 1] += error * 7.0 / 16.0
+                pixels[index + 1] += (error * 7.0 / 16.0).roundToInt()
             }
             if (y + 1 < height) {
                 if (x > 0) {
-                    pixels[index + width - 1] += error * 3.0 / 16.0
+                    pixels[index + width - 1] += (error * 3.0 / 16.0).roundToInt()
                 }
-                pixels[index + width] += error * 5.0 / 16.0
+                pixels[index + width] += (error * 5.0 / 16.0).roundToInt()
                 if (x + 1 < width) {
-                    pixels[index + width + 1] += error * 1.0 / 16.0
+                    pixels[index + width + 1] += (error * 1.0 / 16.0).roundToInt()
                 }
             }
         }
@@ -127,7 +132,7 @@ fun ditherAtkinson(bitmap: Bitmap): Bitmap {
             //         X  1  1
             //      1  1  1
             //         1  1
-            val errorPart = error / 8.0
+            val errorPart = (error / 8.0).roundToInt()
             if (x + 1 < width) {
                 pixels[index + 1] += errorPart
             }
