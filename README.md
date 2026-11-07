@@ -66,6 +66,8 @@ You might want to add some inline css in your html to reset the margins:
 }
 ```
 
+An example page for printing through intents is available here https://open-escpos-print-intent-demo.vercel.app/
+
 ## Using via `ACTION_SEND` or `ACTION_SEND_MULTIPLE`
 
 You can share images to this app, they will be printed on the default printer.
