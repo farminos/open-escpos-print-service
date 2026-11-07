@@ -73,25 +73,6 @@ fun pdfToBitmaps(
     renderer.close()
 }
 
-fun bitmapSlices(
-    bitmap: Bitmap,
-    step: Int,
-) = sequence {
-    val width: Int = bitmap.width
-    val height: Int = bitmap.height
-    for (y in 0 until height step step) {
-        val slice =
-            Bitmap.createBitmap(
-                bitmap,
-                0,
-                y,
-                width,
-                if (y + step >= height) height - y else step,
-            )
-        yield(slice)
-    }
-}
-
 data class Tile(
     val x: Int,
     val y: Int,
@@ -125,17 +106,6 @@ fun bitmapRegionIsWhite(
         }
     }
     return true
-}
-
-fun bitmapNonEmptyTiles(
-    bitmap: Bitmap,
-    tileSize: Int,
-) = sequence {
-    for (tile in bitmapTiles(bitmap, tileSize, tileSize)) {
-        if (!bitmapRegionIsWhite(bitmap, tile)) {
-            yield(tile)
-        }
-    }
 }
 
 fun bitmapLastNonWhiteLine(bitmap: Bitmap): Int {

@@ -2,11 +2,11 @@ package com.farminos.print.driver
 
 import android.bluetooth.BluetoothManager
 import android.content.Context
-import android.graphics.Bitmap
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.ParcelFileDescriptor
 import androidx.core.content.ContextCompat
+import com.farminos.print.BinaryImage
 import com.farminos.print.Driver
 import com.farminos.print.Interface
 import com.farminos.print.OpenEscPosPrintServiceApplication
@@ -16,6 +16,7 @@ import com.farminos.print.connection.BluetoothConnection
 import com.farminos.print.connection.DeviceConnection
 import com.farminos.print.connection.TcpConnection
 import com.farminos.print.connection.UsbConnection
+import com.farminos.print.getDitheredBitmap
 import com.farminos.print.pdfToBitmaps
 import java.io.Closeable
 import java.lang.Thread.sleep
@@ -98,12 +99,13 @@ abstract class PrinterDriver(
         lastTime = now
     }
 
-    abstract fun printBitmap(bitmap: Bitmap)
+    abstract fun printBitmap(bitmap: BinaryImage)
 
     fun printDocument(document: ParcelFileDescriptor) {
         pdfToBitmaps(document, settings.dpi, settings.width, settings.height).forEach { page ->
             val bitmap = if (settings.skipWhiteLinesAtPageEnd) bitmapCropWhiteEnd(page) else page
-            printBitmap(bitmap)
+            val ditheredBitmap = getDitheredBitmap(bitmap, settings.dithering)
+            printBitmap(ditheredBitmap)
         }
         document.close()
     }

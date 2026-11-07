@@ -1,17 +1,27 @@
 package com.farminos.print
 
 import android.graphics.Bitmap
-import android.graphics.Color
-import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
-import androidx.core.graphics.set
 import kotlin.math.roundToInt
 
-fun ditherGradient(bitmap: Bitmap): Bitmap {
+fun ditherNone(bitmap: Bitmap): BinaryImage {
+    val width = bitmap.width
+    val height = bitmap.height
+    val output = BinaryImage(width, height)
+    for (y in 0 until height) {
+        for (x in 0 until width) {
+            val color = bitmap[x, y]
+            output[x, y] = if (luminance(color) < 128) BinaryImage.BLACK else BinaryImage.WHITE
+        }
+    }
+    return output
+}
+
+fun ditherGradient(bitmap: Bitmap): BinaryImage {
     // Dithering logic from com.dantsu.escposprinter.EscPosPrinterCommands
     val width = bitmap.width
     val height = bitmap.height
-    val output = createBitmap(width, height)
+    val output = BinaryImage(width, height)
     var greyscaleCoefficientInit = 0
     val gradientStep = 6
     val colorLevelStep = 765.0 / (15 * gradientStep + gradientStep - 1)
@@ -26,12 +36,7 @@ fun ditherGradient(bitmap: Bitmap): Bitmap {
             val isBlack =
                 (red + green + blue) <
                     ((greyscaleCoefficient * gradientStep + greyscaleLine) * colorLevelStep)
-            output[x, y] =
-                if (isBlack) {
-                    Color.BLACK
-                } else {
-                    Color.WHITE
-                }
+            output[x, y] = if (isBlack) BinaryImage.BLACK else BinaryImage.WHITE
             greyscaleCoefficient += 5
             if (greyscaleCoefficient > 15) {
                 greyscaleCoefficient -= 16
@@ -65,10 +70,10 @@ fun getLuminanceData(bitmap: Bitmap): IntArray {
     return pixels
 }
 
-fun ditherFloydSteinberg(bitmap: Bitmap): Bitmap {
+fun ditherFloydSteinberg(bitmap: Bitmap): BinaryImage {
     val width = bitmap.width
     val height = bitmap.height
-    val output = createBitmap(width, height)
+    val output = BinaryImage(width, height)
     // Work with grayscale values so error diffusion can modify them.
     val pixels = getLuminanceData(bitmap)
     for (y in 0 until height) {
@@ -77,12 +82,7 @@ fun ditherFloydSteinberg(bitmap: Bitmap): Bitmap {
             val oldPixel = pixels[index]
             val newPixel = if (oldPixel < 128) 0 else 255
             val error = oldPixel - newPixel
-            output[x, y] =
-                if (newPixel == 0) {
-                    Color.BLACK
-                } else {
-                    Color.WHITE
-                }
+            output[x, y] = if (newPixel == 0) BinaryImage.BLACK else BinaryImage.WHITE
             // Floyd-Steinberg error diffusion:
             //
             //             X     7/16
@@ -105,23 +105,18 @@ fun ditherFloydSteinberg(bitmap: Bitmap): Bitmap {
     return output
 }
 
-fun ditherAtkinson(bitmap: Bitmap): Bitmap {
+fun ditherAtkinson(bitmap: Bitmap): BinaryImage {
     val width = bitmap.width
     val height = bitmap.height
-    val output = createBitmap(width, height)
+    val output = BinaryImage(width, height)
     val pixels = getLuminanceData(bitmap)
     for (y in 0 until height) {
         for (x in 0 until width) {
             val index = y * width + x
             val oldPixel = pixels[index]
-            val newPixel = if (oldPixel < 128.0) 0.0 else 255.0
+            val newPixel = if (oldPixel < 128) 0 else 255
             val error = oldPixel - newPixel
-            output[x, y] =
-                if (newPixel == 0.0) {
-                    Color.BLACK
-                } else {
-                    Color.WHITE
-                }
+            output[x, y] = if (newPixel == 0) BinaryImage.BLACK else BinaryImage.WHITE
             // Atkinson dithering:
             //
             //             X  1
@@ -159,10 +154,10 @@ fun ditherAtkinson(bitmap: Bitmap): Bitmap {
 fun getDitheredBitmap(
     bitmap: Bitmap,
     algorithm: Dithering,
-): Bitmap =
+): BinaryImage =
     when (algorithm) {
         Dithering.NONE -> {
-            bitmap
+            ditherNone(bitmap)
         }
 
         Dithering.GRADIENT -> {

@@ -1,15 +1,12 @@
 package com.farminos.print.driver
 
 import android.content.Context
-import android.graphics.Bitmap
-import androidx.core.graphics.get
+import com.farminos.print.BinaryImage
 import com.farminos.print.PrinterSettings
 import com.farminos.print.cmToPixels
-import com.farminos.print.getDitheredBitmap
 import com.farminos.print.pixelsToCm
 import java.io.ByteArrayOutputStream
 import java.lang.Thread.sleep
-import kotlin.math.ceil
 
 class CpclPrinterStatus(
     private val status: Int,
@@ -23,47 +20,22 @@ class CpclPrinterStatus(
 }
 
 fun cpclBitmapToBytes(
-    bitmap: Bitmap,
+    bitmap: BinaryImage,
     settings: PrinterSettings,
 ): ByteArray {
-    val bitmapWidth = bitmap.width
-    val bitmapHeight = bitmap.height
     val dpi = settings.dpi
     val horizontalOffset = 0
     val labelHeightCm = settings.height
     val labelHeightMarginCm = 0.15f
-    val labelHeightPx = if (settings.cut) cmToPixels(labelHeightCm - labelHeightMarginCm, dpi) else bitmapHeight
+    val labelHeightPx = if (settings.cut) cmToPixels(labelHeightCm - labelHeightMarginCm, dpi) else bitmap.height
     val count = 1
-    val bytesPerLine = ceil(((bitmapWidth.toFloat()) / 8f).toDouble()).toInt()
     val output = ByteArrayOutputStream()
     output.write("! $horizontalOffset $dpi $dpi $labelHeightPx $count\r\n".toByteArray())
     if (!settings.cut) {
         output.write("JOURNAL\r\n".toByteArray())
     }
-    output.write("CG $bytesPerLine $bitmapHeight 0 0 ".toByteArray())
-    val imageBytes = ByteArray(bytesPerLine * bitmapHeight)
-    var i = 0
-    for (posY in 0..<bitmapHeight) {
-        var j = 0
-        while (j < bitmapWidth) {
-            var b = 0
-            for (k in 0..7) {
-                val posX = j + k
-                if (posX < bitmapWidth) {
-                    val color = bitmap[posX, posY]
-                    val red = (color shr 16) and 255
-                    val green = (color shr 8) and 255
-                    val blue = color and 255
-                    if (red < 160 || green < 160 || blue < 160) {
-                        b = b or (1 shl (7 - k))
-                    }
-                }
-            }
-            imageBytes[i++] = b.toByte()
-            j += 8
-        }
-    }
-    output.write(imageBytes)
+    output.write("CG ${bitmap.bytesPerLine} ${bitmap.height} 0 0 ".toByteArray())
+    output.write(bitmap.pack(inverted = true))
     output.write("\r\n".toByteArray())
     if (settings.cut) {
         output.write("FORM\r\n".toByteArray())
@@ -103,12 +75,11 @@ class CpclDriver(
         } while (!ready)
     }
 
-    override fun printBitmap(bitmap: Bitmap) {
-        val ditheredBitmap = getDitheredBitmap(bitmap, settings.dithering)
+    override fun printBitmap(bitmap: BinaryImage) {
         delayForLength(0f)
         waitUntilReady()
-        socket.write(cpclBitmapToBytes(ditheredBitmap, settings))
-        delayForLength(pixelsToCm(ditheredBitmap.height, settings.dpi))
+        socket.write(cpclBitmapToBytes(bitmap, settings))
+        delayForLength(pixelsToCm(bitmap.height, settings.dpi))
         if (settings.cut && settings.cutDelay > 0) {
             sleep((settings.cutDelay * 1000).toLong())
             // Reset speed limit timer

@@ -332,7 +332,8 @@ class PrintActivity : ComponentActivity() {
                     val bitmap = BitmapFactory.decodeStream(inputStream)
                     val scaledBitmap = scaleBitmap(rotateBitmap(bitmap, orientation), printerSettings)
                     val rgbBitmap = argbToRgbOnWhite(scaledBitmap)
-                    driver.printBitmap(rgbBitmap)
+                    val ditheredBitmap = getDitheredBitmap(rgbBitmap, printerSettings.dithering)
+                    driver.printBitmap(ditheredBitmap)
                 }
             }
         }
@@ -368,7 +369,8 @@ class PrintActivity : ComponentActivity() {
                 marginRight,
                 marginBottom,
             ).forEach {
-                driver.printBitmap(it)
+                val ditheredBitmap = getDitheredBitmap(it, printerSettings.dithering)
+                driver.printBitmap(ditheredBitmap)
             }
         }
     }
