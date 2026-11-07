@@ -39,15 +39,15 @@ abstract class PrinterDriver(
         socket =
             when (settings.`interface`) {
                 Interface.BLUETOOTH -> {
-                    getBluetoothSocket(settings)
+                    getBluetoothSocket()
                 }
 
                 Interface.USB -> {
-                    getUsbSocket(settings)
+                    getUsbSocket()
                 }
 
                 Interface.TCP_IP -> {
-                    getTcpSocket(settings)
+                    getTcpSocket()
                 }
 
                 else -> {
@@ -57,7 +57,7 @@ abstract class PrinterDriver(
         reset()
     }
 
-    private fun getBluetoothSocket(settings: PrinterSettings): BluetoothConnection {
+    private fun getBluetoothSocket(): BluetoothConnection {
         val bluetoothManager: BluetoothManager =
             ContextCompat.getSystemService(
                 context,
@@ -68,13 +68,13 @@ abstract class PrinterDriver(
         return BluetoothConnection(context, device)
     }
 
-    private fun getUsbSocket(settings: PrinterSettings): UsbConnection {
+    private fun getUsbSocket(): UsbConnection {
         val usbManager = ContextCompat.getSystemService(context, UsbManager::class.java) ?: error("Can't get UsbManager")
         val usbDevice = getFirstUsbDevice(usbManager, settings.address)
         return UsbConnection(usbManager, usbDevice)
     }
 
-    private fun getTcpSocket(settings: PrinterSettings): TcpConnection {
+    private fun getTcpSocket(): TcpConnection {
         val addressAndPort = settings.address.split(":")
         // TODO: configurable timeout?
         return TcpConnection(addressAndPort[0], addressAndPort[1].toInt(), 5000)
