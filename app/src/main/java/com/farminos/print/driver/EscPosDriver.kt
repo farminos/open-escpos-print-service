@@ -48,11 +48,11 @@ class EscPosDriver(
     }
 
     override fun printBitmap(bitmap: BinaryImage) {
-        val heightPx = 128
+        val sliceHeight = 128
         delayForLength(0f)
-        bitmap.slices(heightPx).forEach {
+        bitmap.slices(sliceHeight).forEach {
             socket.write(escPosBitmapToBytes(it))
-            delayForLength(pixelsToCm(heightPx, settings.dpi))
+            delayForLength(pixelsToCm(it.height, settings.dpi))
         }
         if (settings.cut) {
             cutPaper()
