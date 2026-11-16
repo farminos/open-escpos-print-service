@@ -15,7 +15,7 @@ kotlin = "2.4.21"
 kotlinterGradlePlugin = "5.7.0"
 material = "1.14.0"
 material3Android = "1.4.0"
-protobufGradlePlugin = "0.10.0"
+protobufGradlePlugin = "0.10.1"
 protobufKotlinLite = "4.36.2"
 annotation = "1.11.0"
 
