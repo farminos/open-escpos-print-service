@@ -3,6 +3,7 @@ package com.farminos.print
 import android.Manifest
 import android.bluetooth.BluetoothManager
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.print.PrintAttributes
 import android.print.PrintAttributes.Margins
@@ -68,11 +69,10 @@ class OpenEscPosPrinterDiscoverySession(
     }
 
     private fun listBluetoothPrinters(settings: Settings): List<PrinterWithSettingsAndInfo> {
-        if (ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.BLUETOOTH_CONNECT,
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
+        val allowed =
+            (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) ||
+                ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+        if (!allowed) {
             return listOf()
         }
         val bluetoothAdapter = ContextCompat.getSystemService(context, BluetoothManager::class.java)?.adapter ?: return listOf()

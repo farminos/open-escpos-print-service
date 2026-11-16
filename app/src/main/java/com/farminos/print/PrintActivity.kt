@@ -154,14 +154,8 @@ class PrintActivity : ComponentActivity() {
 
     private fun updatePrintersList() {
         val allowed =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_CONNECT,
-                ) == PackageManager.PERMISSION_GRANTED
-            } else {
-                true
-            }
+            (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) ||
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
         bluetoothAllowed.update { allowed }
         if (!allowed) {
             return
